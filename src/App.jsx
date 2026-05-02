@@ -191,7 +191,9 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({});
   const [showSidebar, setShowSidebar] = useState(false);
+  const [typingUsers, setTypingUsers] = useState({});
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   
   const localVideoRef = useRef(null);
   const localScreenRef = useRef(null);
@@ -241,6 +243,18 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           setRemoteStreams(prev => ({ ...prev, [socketId]: remoteStream }));
         });
       }
+    });
+
+    socket.on('user-typing', ({ userName, socketId }) => {
+      setTypingUsers(prev => ({ ...prev, [socketId]: userName }));
+    });
+
+    socket.on('user-stop-typing', ({ socketId }) => {
+      setTypingUsers(prev => {
+        const next = { ...prev };
+        delete next[socketId];
+        return next;
+      });
     });
 
     socket.on('error', ({ message }) => {
@@ -355,6 +369,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     if (!inputMsg.trim()) return;
     if (socket) {
       socket.emit('send-message', { roomId, text: inputMsg });
+      socket.emit('stop-typing', { roomId });
     } else {
       // Fallback if no socket
       setMessages(prev => [...prev, {
@@ -364,6 +379,17 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       }]);
     }
     setInputMsg('');
+  };
+
+  const handleTyping = (e) => {
+    setInputMsg(e.target.value);
+    if (socket && socket.connected) {
+      socket.emit('typing', { roomId });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('stop-typing', { roomId });
+      }, 2000);
+    }
   };
 
   const copyInviteLink = () => {
@@ -497,6 +523,13 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
               </div>
             )
           ))}
+          {Object.values(typingUsers).length > 0 && (
+            <div className="typing-indicator" style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="typing-dots"><span></span><span></span><span></span></div>
+              {Object.values(typingUsers).join(', ')} is typing...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
@@ -530,7 +563,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
             className="input-field" 
             placeholder="Type a message..." 
             value={inputMsg}
-            onChange={(e) => setInputMsg(e.target.value)}
+            onChange={handleTyping}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             style={{ flex: 1, margin: '0 8px' }}
           />

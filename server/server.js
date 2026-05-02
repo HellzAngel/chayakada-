@@ -124,6 +124,14 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-joined', { socketId: socket.id, userName: socket.userName });
   });
 
+  socket.on('typing', ({ roomId }) => {
+    socket.to(roomId).emit('user-typing', { userName: socket.userName, socketId: socket.id });
+  });
+
+  socket.on('stop-typing', ({ roomId }) => {
+    socket.to(roomId).emit('user-stop-typing', { socketId: socket.id });
+  });
+
   // ── DISCONNECT ────────────────────────────────────────────────
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
