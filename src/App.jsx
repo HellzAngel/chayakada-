@@ -2,6 +2,9 @@ import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, OrbitControls, RoundedBox, Text } from '@react-three/drei';
 import { Send, Video, VideoOff, Mic, MicOff, Users, PhoneOff, Copy, MessageSquare, Plus, Coffee, MonitorUp } from 'lucide-react';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0] }) {
   const ref = useRef();
@@ -162,32 +165,66 @@ function Landing({ onJoin, onCreate }) {
   );
 }
 
-function ChatRoom({ roomId, onLeave, userContext, showToast }) {
+function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const [messages, setMessages] = useState([
     { id: 1, text: `ചായക്കട തുറന്നു! ${userContext.roomType === 'private' ? '(Private Room - 2 Max)' : '(Group Room)'}`, sender: 'system', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) },
-    { id: 2, text: 'എല്ലാവരും എവിടെപ്പോയി? ചായ കുടിക്കാൻ വരുന്നില്ലേ? ☕', sender: 'own', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
   ]);
   const [inputMsg, setInputMsg] = useState('');
+  const [participants, setParticipants] = useState([{ userName: userContext.userName, isHost: userContext.isHost, socketId: 'self' }]);
   const [isVideoActive, setIsVideoActive] = useState(false);
   const [isMicActive, setIsMicActive] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const messagesEndRef = useRef(null);
   
   const localVideoRef = useRef(null);
   const localScreenRef = useRef(null);
-  
   const videoStreamRef = useRef(null);
   const audioStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
-  
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('new-message', (msg) => {
+      setMessages(prev => [...prev, {
+        ...msg,
+        sender: msg.sender === socket.id ? 'own' : 'other'
+      }]);
+    });
+
+    socket.on('system-message', (msg) => {
+      setMessages(prev => [...prev, { id: Date.now(), sender: 'system', ...msg }]);
+    });
+
+    socket.on('room-update', (state) => {
+      if (state?.members) setParticipants(state.members);
+    });
+
+    socket.on('error', ({ message }) => {
+      showToast(message, 'error');
+    });
+
+    return () => {
+      socket.off('new-message');
+      socket.off('system-message');
+      socket.off('room-update');
+      socket.off('error');
+    };
+  }, [socket]);
+
   // Manage Video Stream independently
   useEffect(() => {
     if (isVideoActive) {
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
           videoStreamRef.current = stream;
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-          }
+          if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         })
         .catch(err => {
           console.error("Camera access denied", err);
@@ -205,7 +242,6 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
   // Manage Audio Stream independently
   useEffect(() => {
     if (isMicActive && !audioStreamRef.current) {
-      // First time turning on mic, request permission
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           audioStreamRef.current = stream;
@@ -217,10 +253,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
           setIsMicActive(false);
         });
     } else if (audioStreamRef.current) {
-      // Just toggle mute/unmute without dropping the stream
-      audioStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = isMicActive;
-      });
+      audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = isMicActive; });
     }
   }, [isMicActive]);
 
@@ -237,12 +270,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         screenStreamRef.current = stream;
         setIsScreenSharing(true);
-        
-        // Native browser "Stop sharing" listener
-        stream.getVideoTracks()[0].onended = () => {
-          setIsScreenSharing(false);
-          screenStreamRef.current = null;
-        };
+        stream.getVideoTracks()[0].onended = () => { setIsScreenSharing(false); screenStreamRef.current = null; };
       } catch (err) {
         console.error("Screen share access denied", err);
         showToast("Screen share cancelled or denied.", "error");
@@ -259,32 +287,30 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
   // Cleanup all streams on leave
   useEffect(() => {
     return () => {
-      if (videoStreamRef.current) {
-        videoStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach(track => track.stop());
-      }
+      [videoStreamRef, audioStreamRef, screenStreamRef].forEach(ref => {
+        if (ref.current) ref.current.getTracks().forEach(t => t.stop());
+      });
     };
   }, []);
 
   const handleSend = () => {
-    if(!inputMsg.trim()) return;
-    setMessages([...messages, { 
-      id: Date.now(), 
-      text: inputMsg, 
-      sender: 'own',
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+    if (!inputMsg.trim()) return;
+    if (socket) {
+      socket.emit('send-message', { roomId, text: inputMsg });
+    } else {
+      // Fallback if no socket
+      setMessages(prev => [...prev, {
+        id: Date.now(), text: inputMsg, sender: 'own',
+        senderName: userContext.userName,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      }]);
+    }
     setInputMsg('');
   };
 
   const copyInviteLink = () => {
     navigator.clipboard.writeText(roomId);
-    showToast('Room ID copied to clipboard!', 'success');
+    showToast('Room ID copied! Share it with your friend ☕', 'success');
   };
 
   return (
@@ -310,18 +336,19 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
 
         <div className="participant-section" style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Participants (1 {userContext.roomType === 'private' ? '/ 2' : ''})</p>
-            <span style={{ background: 'rgba(139, 92, 246, 0.2)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>Online</span>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Participants ({participants.length}{userContext.roomType === 'private' ? ' / 2' : ''})</p>
+            <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>Online</span>
           </div>
-          
-          <div className="participant-item">
-            <div className="avatar">{userContext.userName.charAt(0).toUpperCase()}</div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{userContext.userName} (You)</p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{userContext.isHost ? 'Admin' : 'Guest'}</p>
+          {participants.map((p, i) => (
+            <div className="participant-item" key={i}>
+              <div className="avatar">{p.userName.charAt(0).toUpperCase()}</div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{p.userName} {p.userName === userContext.userName ? '(You)' : ''}</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{p.isHost ? 'Admin' : 'Guest'}</p>
+              </div>
+              <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 6px #22c55e', display: 'inline-block' }}></span>
             </div>
-            {isMicActive ? <Mic size={16} color="var(--primary)" /> : <MicOff size={16} color="var(--accent)" />}
-          </div>
+          ))}
         </div>
 
         <button className="btn" onClick={onLeave} style={{ background: 'rgba(244, 63, 94, 0.1)', color: 'var(--accent)', border: '1px solid rgba(244, 63, 94, 0.3)', boxShadow: 'none' }}>
@@ -434,66 +461,102 @@ function ChatRoom({ roomId, onLeave, userContext, showToast }) {
 
 export default function App() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
-  const [currentRoom, setCurrentRoom] = useState(() => {
-    return sessionStorage.getItem('chayakada_room') || null;
-  });
+  const [currentRoom, setCurrentRoom] = useState(() => sessionStorage.getItem('chayakada_room') || null);
   const [userContext, setUserContext] = useState(() => {
     const saved = sessionStorage.getItem('chayakada_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const socketRef = useRef(null);
 
   const showToast = (message, type = 'error') => {
     setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 4000);
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
   };
 
+  // Initialize socket once
+  useEffect(() => {
+    const socket = io(SOCKET_URL, { autoConnect: false });
+    socketRef.current = socket;
+
+    socket.on('connect', () => console.log('Socket connected:', socket.id));
+    socket.on('connect_error', () => showToast('Could not reach server. Running in offline mode.', 'error'));
+    socket.on('error', ({ message }) => showToast(message, 'error'));
+
+    socket.connect();
+
+    // Rejoin room if session exists (on page refresh)
+    const savedRoom = sessionStorage.getItem('chayakada_room');
+    const savedUser = sessionStorage.getItem('chayakada_user');
+    if (savedRoom && savedUser) {
+      const user = JSON.parse(savedUser);
+      socket.once('connect', () => {
+        socket.emit('join-room', { roomId: savedRoom, userName: user.userName });
+      });
+    }
+
+    return () => socket.disconnect();
+  }, []);
+
   const handleCreateRoom = (userName, roomType) => {
-    if (!userName.trim()) return showToast("Please enter your name before creating a room.", "error");
+    if (!userName.trim()) return showToast('Please enter your name before creating a room.', 'error');
     const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const context = { userName, roomType, isHost: true };
-    
-    // Add to mock backend (localStorage)
-    const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
-    if (!activeRooms.includes(newId)) {
-      activeRooms.push(newId);
-      localStorage.setItem('chayakada_active_rooms', JSON.stringify(activeRooms));
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('create-room', { roomId: newId, userName, roomType });
+      socketRef.current.once('room-created', () => {
+        sessionStorage.setItem('chayakada_room', newId);
+        sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+        setUserContext(context);
+        setCurrentRoom(newId);
+      });
+    } else {
+      // Offline fallback
+      sessionStorage.setItem('chayakada_room', newId);
+      sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+      setUserContext(context);
+      setCurrentRoom(newId);
     }
-    
-    sessionStorage.setItem('chayakada_room', newId);
-    sessionStorage.setItem('chayakada_user', JSON.stringify(context));
-    
-    setUserContext(context);
-    setCurrentRoom(newId);
   };
 
   const handleJoinRoom = (userName, id) => {
-    if (!userName.trim()) return showToast("Please enter your name before joining.", "error");
-    if (!id.trim()) return showToast("Please enter a room code.", "error");
-    
+    if (!userName.trim()) return showToast('Please enter your name before joining.', 'error');
+    if (!id.trim()) return showToast('Please enter a room code.', 'error');
+
     const normalizedId = id.trim().toUpperCase();
     if (normalizedId.length !== 6 || !/^[A-Z0-9]{6}$/.test(normalizedId)) {
-      return showToast("Error: Wrong Room ID! The code must be 6 letters/numbers.", "error");
+      return showToast('Wrong Room ID! The code must be exactly 6 letters/numbers.', 'error');
     }
-    
+
     const context = { userName, roomType: 'private', isHost: false };
-    
-    sessionStorage.setItem('chayakada_room', normalizedId);
-    sessionStorage.setItem('chayakada_user', JSON.stringify(context));
-    
-    setUserContext(context); 
-    setCurrentRoom(normalizedId);
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('join-room', { roomId: normalizedId, userName });
+
+      // Listen for successful join (room-update) or error
+      const onRoomUpdate = () => {
+        sessionStorage.setItem('chayakada_room', normalizedId);
+        sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+        setUserContext(context);
+        setCurrentRoom(normalizedId);
+        socketRef.current.off('error', onError);
+      };
+      const onError = ({ message }) => {
+        showToast(message, 'error');
+        socketRef.current.off('room-update', onRoomUpdate);
+      };
+      socketRef.current.once('room-update', onRoomUpdate);
+      socketRef.current.once('error', onError);
+    } else {
+      // Offline fallback
+      sessionStorage.setItem('chayakada_room', normalizedId);
+      sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+      setUserContext(context);
+      setCurrentRoom(normalizedId);
+    }
   };
 
   const handleLeaveRoom = () => {
-    // If the host leaves, destroy the room globally
-    if (userContext?.isHost && currentRoom) {
-      const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
-      const updatedRooms = activeRooms.filter(id => id !== currentRoom);
-      localStorage.setItem('chayakada_active_rooms', JSON.stringify(updatedRooms));
-    }
-
     sessionStorage.removeItem('chayakada_room');
     sessionStorage.removeItem('chayakada_user');
     setCurrentRoom(null);
@@ -515,11 +578,11 @@ export default function App() {
             userContext={userContext} 
             onLeave={handleLeaveRoom} 
             showToast={showToast}
+            socket={socketRef.current}
           />
         )}
       </div>
 
-      {/* Global Toast Notification */}
       {toast.show && (
         <div className={`custom-toast ${toast.type}`}>
           <p style={{ margin: 0 }}>{toast.message}</p>
@@ -529,3 +592,4 @@ export default function App() {
     </div>
   );
 }
+
