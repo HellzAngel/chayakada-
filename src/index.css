@@ -33,19 +33,15 @@ html {
   height: 100%;
 }
 
-/* Stunning Glassmorphism */
-.glass-panel {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-glass);
-  border-top: 1px solid rgba(253, 230, 138, 0.15);
-  border-left: 1px solid rgba(253, 230, 138, 0.15);
   border-radius: 20px;
   box-shadow: 
     0 12px 40px 0 rgba(0, 0, 0, 0.5),
     inset 0 0 15px rgba(217, 119, 6, 0.05); /* Subtle inner tube glow */
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-header, .sidebar-mobile-close {
+  display: none;
 }
 
 .neon-text {
@@ -590,36 +586,77 @@ html {
     overflow: hidden;
   }
 
-  .sidebar {
-    width: 100%;
-    padding: 10px 16px;
-    height: auto;
-    min-height: unset;
-    flex-direction: row;
+  .mobile-header {
+    display: flex;
     align-items: center;
-    flex-wrap: wrap;
     justify-content: space-between;
-    border-radius: 0;
-    border-bottom: 1px solid var(--border-glass);
-    z-index: 20;
-    flex-shrink: 0;
+    padding: 12px 20px;
+    border-radius: 0 0 20px 20px;
+    border-top: none;
+    z-index: 100;
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    margin: 0 10px;
+    border: 1px solid var(--border-glass);
+    border-top: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 85%;
+    max-width: 320px;
+    height: 100%;
+    z-index: 1000;
+    border-radius: 0 24px 24px 0;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(28, 21, 18, 0.95);
+    backdrop-filter: blur(20px);
+    padding: 40px 24px;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+    border: none;
+    border-right: 1px solid var(--border-glass);
+  }
+
+  .sidebar.show {
+    left: 0;
+  }
+
+  .sidebar-mobile-close {
+    display: block;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+
+  .notification-dot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #22c55e;
   }
 
   .sidebar-branding {
-    margin-bottom: 0 !important;
+    margin-bottom: 32px !important;
   }
 
   .sidebar-invite {
-    display: none;
+    display: block;
   }
 
   .participant-section {
-    display: none;
+    display: block;
   }
 
   .sidebar .btn {
-    padding: 8px 12px;
-    font-size: 0.8rem;
+    margin-top: 20px;
   }
 
   .main-chat {

@@ -190,6 +190,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const [isMicActive, setIsMicActive] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({});
+  const [showSidebar, setShowSidebar] = useState(false);
   const messagesEndRef = useRef(null);
   
   const localVideoRef = useRef(null);
@@ -372,8 +373,24 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
   return (
     <div className="chat-layout">
+      {/* Mobile Header */}
+      <div className="mobile-header glass-panel">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Coffee size={20} color="var(--primary)" />
+          <span style={{ fontWeight: 'bold', letterSpacing: '1px' }}>CHAYAKADA</span>
+        </div>
+        <button className="icon-btn" onClick={() => setShowSidebar(!showSidebar)} style={{ position: 'relative' }}>
+          <Users size={20} />
+          {participants.length > 1 && <span className="notification-dot"></span>}
+        </button>
+      </div>
+
       {/* Sidebar */}
-      <div className="glass-panel sidebar">
+      <div className={`glass-panel sidebar ${showSidebar ? 'show' : ''}`}>
+        <div className="sidebar-mobile-close">
+           <button className="icon-btn" onClick={() => setShowSidebar(false)}>✕</button>
+        </div>
+
         <div className="sidebar-branding" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
           <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px var(--primary-glow)' }}>
             <Coffee size={20} color="white" />
