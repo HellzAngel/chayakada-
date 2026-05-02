@@ -92,6 +92,10 @@ io.on('connection', (socket) => {
 
     // Notify all members
     io.to(roomId).emit('room-update', buildRoomState(roomId));
+    
+    // WebRTC: Notify others to call this new user
+    socket.to(roomId).emit('user-joined', { socketId: socket.id, userName });
+
     io.to(roomId).emit('system-message', {
       text: `${userName} joined the chayakada! ☕`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -101,7 +105,7 @@ io.on('connection', (socket) => {
   });
 
   // ── SEND MESSAGE ──────────────────────────────────────────────
-  socket.on('send-message', ({ roomId, text }) => {
+    socket.on('send-message', ({ roomId, text }) => {
     const room = rooms[roomId];
     if (!room || !room.members[socket.id]) return;
 
@@ -114,6 +118,10 @@ io.on('connection', (socket) => {
     };
 
     io.to(roomId).emit('new-message', message);
+  });
+
+  socket.on('refresh-webrtc', ({ roomId }) => {
+    socket.to(roomId).emit('user-joined', { socketId: socket.id, userName: socket.userName });
   });
 
   // ── DISCONNECT ────────────────────────────────────────────────

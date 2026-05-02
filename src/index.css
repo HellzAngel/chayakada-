@@ -620,10 +620,27 @@ html {
     flex-shrink: 0;
     border-top: 1px solid var(--border-glass);
     background: var(--bg-glass);
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .controls-group {
-    display: none;
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    justify-content: space-around;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 4px;
+  }
+
+  .message-input-area .input-field {
+    order: 1;
+    margin: 0 !important;
+  }
+
+  .message-input-area .btn {
+    order: 2;
   }
 
   .btn {
