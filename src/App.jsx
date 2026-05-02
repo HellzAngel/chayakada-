@@ -475,12 +475,13 @@ export default function App() {
 
   // Initialize socket once
   useEffect(() => {
+    console.log('☕ Chayakada attempting connection to:', SOCKET_URL || 'OFFLINE_MODE');
     if (!SOCKET_URL) return;
 
     const socket = io(SOCKET_URL, { 
       autoConnect: false,
       reconnectionAttempts: 3,
-      timeout: 5000
+      timeout: 10000
     });
     socketRef.current = socket;
 
