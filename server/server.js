@@ -90,8 +90,12 @@ io.on('connection', (socket) => {
     socket.roomId = roomId;
     socket.userName = userName;
 
-    // Notify all members
-    io.to(roomId).emit('room-update', buildRoomState(roomId));
+    // Send success event with full state to the newcomer
+    const state = buildRoomState(roomId);
+    socket.emit('join-success', state);
+    
+    // Notify all members (including newcomer) of the update
+    io.to(roomId).emit('room-update', state);
     
     // WebRTC: Notify others to call this new user
     socket.to(roomId).emit('user-joined', { socketId: socket.id, userName });

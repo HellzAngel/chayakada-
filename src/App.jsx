@@ -218,6 +218,10 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       }]);
     });
 
+    socket.on('join-success', (state) => {
+      if (state?.members) setParticipants(state.members);
+    });
+
     socket.on('system-message', (msg) => {
       setMessages(prev => [...prev, { id: Date.now(), sender: 'system', ...msg }]);
     });
@@ -665,8 +669,8 @@ export default function App() {
     if (socketRef.current?.connected) {
       socketRef.current.emit('join-room', { roomId: normalizedId, userName });
 
-      // Listen for successful join (room-update) or error
-      const onRoomUpdate = () => {
+      // Listen for successful join (join-success) or error
+      const onJoinSuccess = (state) => {
         sessionStorage.setItem('chayakada_room', normalizedId);
         sessionStorage.setItem('chayakada_user', JSON.stringify(context));
         setUserContext(context);
@@ -675,9 +679,9 @@ export default function App() {
       };
       const onError = ({ message }) => {
         showToast(message, 'error');
-        socketRef.current.off('room-update', onRoomUpdate);
+        socketRef.current.off('join-success', onJoinSuccess);
       };
-      socketRef.current.once('room-update', onRoomUpdate);
+      socketRef.current.once('join-success', onJoinSuccess);
       socketRef.current.once('error', onError);
     } else {
       // Offline fallback
