@@ -1,5 +1,5 @@
 import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, OrbitControls, RoundedBox, Text } from '@react-three/drei';
 import { Send, Video, VideoOff, Mic, MicOff, Users, PhoneOff, Copy, MessageSquare, Plus, Coffee, MonitorUp } from 'lucide-react';
 import { io } from 'socket.io-client';
@@ -69,6 +69,10 @@ function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = 
 }
 
 function FloatingChatScene() {
+  const { viewport } = useThree();
+  const isMobile = viewport.width < 10;
+  const responsiveScale = isMobile ? 0.6 : 1;
+
   const bubbles = useMemo(() => [
     { pos: [-10, -4, -2], color: '#8b5cf6', text: 'ചോറ് തിന്നോ? 🍚', speed: 1.5, scale: 0.8, dir: [1, 0.3, 0] },
     { pos: [8, 6, -4], color: '#f43f5e', text: 'അളിയാ സീൻ ആണ് 🏃‍♂️', speed: 1.2, scale: 1, dir: [-1, -0.5, 0.5] },
@@ -85,7 +89,7 @@ function FloatingChatScene() {
     <>
       <Stars radius={100} depth={50} count={800} factor={4} saturation={1} fade speed={1} />
       {bubbles.map((b, i) => (
-        <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale} direction={b.dir} />
+        <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale * responsiveScale} direction={b.dir} />
       ))}
     </>
   );
