@@ -379,8 +379,9 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           <Coffee size={20} color="var(--primary)" />
           <span style={{ fontWeight: 'bold', letterSpacing: '1px' }}>CHAYAKADA</span>
         </div>
-        <button className="icon-btn" onClick={() => setShowSidebar(!showSidebar)} style={{ position: 'relative' }}>
-          <Users size={20} />
+        <button className="icon-btn" onClick={() => setShowSidebar(!showSidebar)} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(217, 119, 6, 0.1)', borderRadius: '10px' }}>
+          <Users size={18} color="var(--primary)" />
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>Members</span>
           {participants.length > 1 && <span className="notification-dot"></span>}
         </button>
       </div>
