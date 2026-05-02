@@ -476,12 +476,6 @@ export default function App() {
     if (normalizedId.length !== 6 || !/^[A-Z0-9]{6}$/.test(normalizedId)) {
       return showToast("Error: Wrong Room ID! The code must be 6 letters/numbers.", "error");
     }
-
-    // Check mock backend if room actually exists
-    const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
-    if (!activeRooms.includes(normalizedId)) {
-      return showToast("Room not found! The host might have left or the room doesn't exist.", "error");
-    }
     
     const context = { userName, roomType: 'private', isHost: false };
     
