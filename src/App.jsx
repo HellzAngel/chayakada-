@@ -1,0 +1,537 @@
+import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars, OrbitControls, RoundedBox, Text } from '@react-three/drei';
+import { Send, Video, VideoOff, Mic, MicOff, Users, PhoneOff, Copy, MessageSquare, Plus, Coffee, MonitorUp } from 'lucide-react';
+
+function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0] }) {
+  const ref = useRef();
+  const [randomOffset] = useState(() => Math.random() * 100);
+
+  useFrame((state, delta) => {
+    if (!ref.current) return;
+    
+    // Move along direction vector
+    ref.current.position.x += direction[0] * delta * speed;
+    ref.current.position.y += direction[1] * delta * speed;
+    ref.current.position.z += direction[2] * delta * speed;
+
+    // Gentle floating sway
+    const sway = Math.sin(state.clock.elapsedTime + randomOffset) * 0.01;
+    ref.current.position.x += (direction[1] !== 0 ? sway : 0);
+    ref.current.position.y += (direction[0] !== 0 ? sway : 0);
+
+    // Reset to opposite side if it goes out of bounds
+    if (ref.current.position.x > 15) ref.current.position.x = -15;
+    if (ref.current.position.x < -15) ref.current.position.x = 15;
+    if (ref.current.position.y > 12) ref.current.position.y = -12;
+    if (ref.current.position.y < -12) ref.current.position.y = 12;
+    if (ref.current.position.z > 10) ref.current.position.z = -15;
+    if (ref.current.position.z < -15) ref.current.position.z = 10;
+  });
+
+  return (
+    <group ref={ref} position={startPosition} scale={scale}>
+      <RoundedBox args={[3.8, 1.2, 0.2]} radius={0.2} smoothness={1}>
+        <meshStandardMaterial color={color} roughness={0.15} metalness={0.2} />
+      </RoundedBox>
+      {/* Bubble Tail */}
+      <RoundedBox args={[0.7, 0.7, 0.18]} radius={0.15} position={[-1.4, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} smoothness={1}>
+        <meshStandardMaterial color={color} roughness={0.15} metalness={0.2} />
+      </RoundedBox>
+      {/* Message Text */}
+      <Text 
+        position={[0, 0, 0.15]} 
+        fontSize={0.3} 
+        color="white" 
+        anchorX="center" 
+        anchorY="middle" 
+        maxWidth={3.5}
+        font="https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts/unhinted/ttf/NotoSansMalayalam/NotoSansMalayalam-Regular.ttf"
+      >
+        {text}
+      </Text>
+    </group>
+  );
+}
+
+function FloatingChatScene() {
+  const bubbles = useMemo(() => [
+    { pos: [-10, -4, -2], color: '#8b5cf6', text: 'ചോറ് തിന്നോ? 🍚', speed: 1.5, scale: 0.8, dir: [1, 0.3, 0] },
+    { pos: [8, 6, -4], color: '#f43f5e', text: 'അളിയാ സീൻ ആണ് 🏃‍♂️', speed: 1.2, scale: 1, dir: [-1, -0.5, 0.5] },
+    { pos: [-2, -10, -1], color: '#3b82f6', text: 'നീയൊക്കെ എവിടെയാടാ? 🧐', speed: 1.8, scale: 0.9, dir: [0.2, 1, 0] },
+    { pos: [10, -2, -5], color: '#22c55e', text: 'കറൻ്റ് പോയി 😭', speed: 1.4, scale: 0.7, dir: [-1, 0.1, 1] },
+    { pos: [2, 10, -3], color: '#eab308', text: 'നാളെ ലീവ് ആണോ? 🛌', speed: 1.0, scale: 0.85, dir: [-0.3, -1, 0] },
+    { pos: [-8, 8, -6], color: '#ec4899', text: 'സിനിമക്ക് പോവാം 🍿', speed: 1.6, scale: 0.95, dir: [1, -0.6, 0.2] },
+    { pos: [-6, -12, -8], color: '#14b8a6', text: 'ഒന്ന് വേഗം വാ ⏳', speed: 1.3, scale: 0.75, dir: [0.8, 0.8, 0.5] },
+    { pos: [6, -8, 2], color: '#f97316', text: 'റിപ്ലൈ താടോ 😡', speed: 1.7, scale: 0.88, dir: [-0.6, 1.2, -0.2] },
+    { pos: [0, -14, -4], color: '#6366f1', text: 'പൈസ ഇല്ല ബ്രോ 💸', speed: 1.1, scale: 0.9, dir: [0, 1.5, -0.5] },
+  ], []);
+
+  return (
+    <>
+      <Stars radius={100} depth={50} count={800} factor={4} saturation={1} fade speed={1} />
+      {bubbles.map((b, i) => (
+        <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale} direction={b.dir} />
+      ))}
+    </>
+  );
+}
+
+function ThreeBackground() {
+  return (
+    <Canvas 
+      camera={{ position: [0, 0, 8], fov: 45 }} 
+      gl={{ antialias: false, powerPreference: "high-performance" }}
+      dpr={[1, 1.5]}
+    >
+      <color attach="background" args={['#1c1512']} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 10, 5]} intensity={1.5} color="#fcd34d" />
+      <directionalLight position={[-5, -5, -5]} intensity={1} color="#ea580c" />
+      
+      <Suspense fallback={null}>
+        <FloatingChatScene />
+      </Suspense>
+      
+      <OrbitControls enableZoom={false} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.3} minPolarAngle={Math.PI / 2 - 0.3} />
+    </Canvas>
+  );
+}
+
+function Landing({ onJoin, onCreate }) {
+  const [roomId, setRoomId] = useState('');
+  const [userName, setUserName] = useState('');
+  const [roomType, setRoomType] = useState('private');
+  
+  return (
+    <div className="landing-card glass-panel">
+      <div className="logo-container">
+        <Coffee size={40} color="white" />
+      </div>
+      <h1 className="landing-title">Chayakada</h1>
+      <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1.1rem', lineHeight: '1.6', fontFamily: 'sans-serif' }}>
+        കൂട്ടുകാരുമായി സൊറ പറയാൻ നമ്മുടെ സ്വന്തം ഡിജിറ്റൽ ചായക്കട.<br/>കയറി വാ മക്കളേ, തകർക്കാം! ☕
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+        <input 
+          type="text" 
+          className="input-field" 
+          placeholder="Enter Your Name..." 
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+        />
+        <select 
+          className="input-field" 
+          value={roomType}
+          onChange={(e) => setRoomType(e.target.value)}
+          style={{ appearance: 'none', cursor: 'pointer', background: 'rgba(0,0,0,0.6)' }}
+        >
+          <option value="private">Private Chayakada (Max 2 Persons)</option>
+          <option value="group">Group Chayakada (Multiple)</option>
+        </select>
+      </div>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <button className="btn" onClick={() => onCreate(userName, roomType)}>
+          <Plus size={20} />
+          Create New Room
+        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-glass)' }}></div>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>OR JOIN ROOM</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-glass)' }}></div>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <input 
+            type="text" 
+            className="input-field" 
+            placeholder="Enter Room Code..." 
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+          />
+          <button className="btn btn-outline" onClick={() => onJoin(userName, roomId)}>
+            Join
+          </button>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>* Private rooms are restricted to 2 people.</p>
+      </div>
+    </div>
+  );
+}
+
+function ChatRoom({ roomId, onLeave, userContext, showToast }) {
+  const [messages, setMessages] = useState([
+    { id: 1, text: `ചായക്കട തുറന്നു! ${userContext.roomType === 'private' ? '(Private Room - 2 Max)' : '(Group Room)'}`, sender: 'system', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) },
+    { id: 2, text: 'എല്ലാവരും എവിടെപ്പോയി? ചായ കുടിക്കാൻ വരുന്നില്ലേ? ☕', sender: 'own', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
+  ]);
+  const [inputMsg, setInputMsg] = useState('');
+  const [isVideoActive, setIsVideoActive] = useState(false);
+  const [isMicActive, setIsMicActive] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  
+  const localVideoRef = useRef(null);
+  const localScreenRef = useRef(null);
+  
+  const videoStreamRef = useRef(null);
+  const audioStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  
+  // Manage Video Stream independently
+  useEffect(() => {
+    if (isVideoActive) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          videoStreamRef.current = stream;
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.error("Camera access denied", err);
+          showToast("Could not access the camera. Please allow permissions.", "error");
+          setIsVideoActive(false);
+        });
+    } else {
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(track => track.stop());
+        videoStreamRef.current = null;
+      }
+    }
+  }, [isVideoActive]);
+
+  // Manage Audio Stream independently
+  useEffect(() => {
+    if (isMicActive && !audioStreamRef.current) {
+      // First time turning on mic, request permission
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          audioStreamRef.current = stream;
+          stream.getAudioTracks().forEach(track => track.enabled = true);
+        })
+        .catch(err => {
+          console.error("Microphone access denied", err);
+          showToast("Could not access the microphone. Please allow permissions.", "error");
+          setIsMicActive(false);
+        });
+    } else if (audioStreamRef.current) {
+      // Just toggle mute/unmute without dropping the stream
+      audioStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = isMicActive;
+      });
+    }
+  }, [isMicActive]);
+
+  // Manage Screen Share independently
+  const toggleScreenShare = async () => {
+    if (isScreenSharing) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+      }
+      setIsScreenSharing(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        screenStreamRef.current = stream;
+        setIsScreenSharing(true);
+        
+        // Native browser "Stop sharing" listener
+        stream.getVideoTracks()[0].onended = () => {
+          setIsScreenSharing(false);
+          screenStreamRef.current = null;
+        };
+      } catch (err) {
+        console.error("Screen share access denied", err);
+        showToast("Screen share cancelled or denied.", "error");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isScreenSharing && localScreenRef.current && screenStreamRef.current) {
+      localScreenRef.current.srcObject = screenStreamRef.current;
+    }
+  }, [isScreenSharing]);
+
+  // Cleanup all streams on leave
+  useEffect(() => {
+    return () => {
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const handleSend = () => {
+    if(!inputMsg.trim()) return;
+    setMessages([...messages, { 
+      id: Date.now(), 
+      text: inputMsg, 
+      sender: 'own',
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
+    setInputMsg('');
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(roomId);
+    showToast('Room ID copied to clipboard!', 'success');
+  };
+
+  return (
+    <div className="chat-layout">
+      {/* Sidebar */}
+      <div className="glass-panel sidebar">
+        <div className="sidebar-branding" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, var(--primary), var(--accent))', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Coffee size={20} color="white" />
+          </div>
+          <h2 className="sidebar-title">Chayakada</h2>
+        </div>
+        
+        <div className="sidebar-invite" style={{ marginBottom: '32px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Invite Others</p>
+          <div className="room-id-badge">
+            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 600, letterSpacing: '2px', color: 'var(--primary)' }}>{roomId}</span>
+            <button onClick={copyInviteLink} className="icon-btn" style={{ padding: '8px' }} title="Copy Room ID">
+              <Copy size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="participant-section" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Participants (1 {userContext.roomType === 'private' ? '/ 2' : ''})</p>
+            <span style={{ background: 'rgba(139, 92, 246, 0.2)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>Online</span>
+          </div>
+          
+          <div className="participant-item">
+            <div className="avatar">{userContext.userName.charAt(0).toUpperCase()}</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{userContext.userName} (You)</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{userContext.isHost ? 'Admin' : 'Guest'}</p>
+            </div>
+            {isMicActive ? <Mic size={16} color="var(--primary)" /> : <MicOff size={16} color="var(--accent)" />}
+          </div>
+        </div>
+
+        <button className="btn" onClick={onLeave} style={{ background: 'rgba(244, 63, 94, 0.1)', color: 'var(--accent)', border: '1px solid rgba(244, 63, 94, 0.3)', boxShadow: 'none' }}>
+          <PhoneOff size={18} />
+          Leave Chayakada
+        </button>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="glass-panel main-chat">
+        {/* Video Grid */}
+        {(isVideoActive || isScreenSharing) && (
+          <div className="video-grid">
+            {isVideoActive && (
+              <div className="video-card">
+                <video 
+                  ref={localVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                />
+                <div className="video-label">
+                  <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
+                  {userContext.userName} (Camera)
+                </div>
+              </div>
+            )}
+            
+            {isScreenSharing && (
+              <div className="video-card">
+                <video 
+                  ref={localScreenRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+                />
+                <div className="video-label">
+                  <span style={{ width: '8px', height: '8px', background: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 10px #3b82f6' }}></span>
+                  {userContext.userName} (Screen)
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="messages-area">
+          {messages.map(msg => (
+            msg.sender === 'system' ? (
+              <div key={msg.id} className="system-message">
+                {msg.text}
+              </div>
+            ) : (
+              <div key={msg.id} className={`message-wrapper ${msg.sender}`}>
+                <div className="message-bubble">
+                  {msg.text}
+                </div>
+                <div className="message-time">{msg.time}</div>
+              </div>
+            )
+          ))}
+        </div>
+
+        {/* Input Area */}
+        <div className="message-input-area">
+          <div className="controls-group">
+            <button 
+              className={`icon-btn ${!isVideoActive ? 'active-red' : ''}`} 
+              onClick={() => setIsVideoActive(!isVideoActive)}
+              title={isVideoActive ? "Turn off camera" : "Turn on camera"}
+            >
+              {isVideoActive ? <Video size={20} /> : <VideoOff size={20} />}
+            </button>
+            <button 
+              className={`icon-btn ${!isMicActive ? 'active-red' : ''}`} 
+              onClick={() => setIsMicActive(!isMicActive)}
+              title={isMicActive ? "Mute microphone" : "Unmute microphone"}
+            >
+              {isMicActive ? <Mic size={20} /> : <MicOff size={20} />}
+            </button>
+            <button 
+              className={`icon-btn ${isScreenSharing ? 'active-green' : ''}`} 
+              onClick={toggleScreenShare}
+              title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+            >
+              <MonitorUp size={20} color={isScreenSharing ? "#22c55e" : "currentColor"} />
+            </button>
+          </div>
+          
+          <input 
+            type="text" 
+            className="input-field" 
+            placeholder="Type a message..." 
+            value={inputMsg}
+            onChange={(e) => setInputMsg(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            style={{ flex: 1, margin: '0 8px' }}
+          />
+          
+          <button className="btn" onClick={handleSend} style={{ padding: '14px', borderRadius: '50%' }}>
+            <Send size={20} style={{ transform: 'translateX(-2px) translateY(2px)' }} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
+  const [currentRoom, setCurrentRoom] = useState(() => {
+    return sessionStorage.getItem('chayakada_room') || null;
+  });
+  const [userContext, setUserContext] = useState(() => {
+    const saved = sessionStorage.getItem('chayakada_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const showToast = (message, type = 'error') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
+  const handleCreateRoom = (userName, roomType) => {
+    if (!userName.trim()) return showToast("Please enter your name before creating a room.", "error");
+    const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const context = { userName, roomType, isHost: true };
+    
+    // Add to mock backend (localStorage)
+    const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
+    if (!activeRooms.includes(newId)) {
+      activeRooms.push(newId);
+      localStorage.setItem('chayakada_active_rooms', JSON.stringify(activeRooms));
+    }
+    
+    sessionStorage.setItem('chayakada_room', newId);
+    sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+    
+    setUserContext(context);
+    setCurrentRoom(newId);
+  };
+
+  const handleJoinRoom = (userName, id) => {
+    if (!userName.trim()) return showToast("Please enter your name before joining.", "error");
+    if (!id.trim()) return showToast("Please enter a room code.", "error");
+    
+    const normalizedId = id.trim().toUpperCase();
+    if (normalizedId.length !== 6 || !/^[A-Z0-9]{6}$/.test(normalizedId)) {
+      return showToast("Error: Wrong Room ID! The code must be 6 letters/numbers.", "error");
+    }
+
+    // Check mock backend if room actually exists
+    const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
+    if (!activeRooms.includes(normalizedId)) {
+      return showToast("Room not found! The host might have left or the room doesn't exist.", "error");
+    }
+    
+    const context = { userName, roomType: 'private', isHost: false };
+    
+    sessionStorage.setItem('chayakada_room', normalizedId);
+    sessionStorage.setItem('chayakada_user', JSON.stringify(context));
+    
+    setUserContext(context); 
+    setCurrentRoom(normalizedId);
+  };
+
+  const handleLeaveRoom = () => {
+    // If the host leaves, destroy the room globally
+    if (userContext?.isHost && currentRoom) {
+      const activeRooms = JSON.parse(localStorage.getItem('chayakada_active_rooms') || '[]');
+      const updatedRooms = activeRooms.filter(id => id !== currentRoom);
+      localStorage.setItem('chayakada_active_rooms', JSON.stringify(updatedRooms));
+    }
+
+    sessionStorage.removeItem('chayakada_room');
+    sessionStorage.removeItem('chayakada_user');
+    setCurrentRoom(null);
+    setUserContext(null);
+  };
+
+  return (
+    <div className="app-container">
+      <div className="canvas-container">
+        <ThreeBackground />
+      </div>
+      
+      <div className="ui-layer">
+        {!currentRoom ? (
+          <Landing onJoin={handleJoinRoom} onCreate={handleCreateRoom} />
+        ) : (
+          <ChatRoom 
+            roomId={currentRoom} 
+            userContext={userContext} 
+            onLeave={handleLeaveRoom} 
+            showToast={showToast}
+          />
+        )}
+      </div>
+
+      {/* Global Toast Notification */}
+      {toast.show && (
+        <div className={`custom-toast ${toast.type}`}>
+          <p style={{ margin: 0 }}>{toast.message}</p>
+          <button onClick={() => setToast(prev => ({ ...prev, show: false }))} className="toast-close">×</button>
+        </div>
+      )}
+    </div>
+  );
+}
