@@ -33,6 +33,14 @@ html {
   height: 100%;
 }
 
+/* Stunning Glassmorphism */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid rgba(253, 230, 138, 0.15);
+  border-left: 1px solid rgba(253, 230, 138, 0.15);
   border-radius: 20px;
   box-shadow: 
     0 12px 40px 0 rgba(0, 0, 0, 0.5),
