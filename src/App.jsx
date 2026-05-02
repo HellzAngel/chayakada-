@@ -4,7 +4,7 @@ import { Stars, OrbitControls, RoundedBox, Text } from '@react-three/drei';
 import { Send, Video, VideoOff, Mic, MicOff, Users, PhoneOff, Copy, MessageSquare, Plus, Coffee, MonitorUp } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || null;
 
 function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0] }) {
   const ref = useRef();
@@ -475,11 +475,24 @@ export default function App() {
 
   // Initialize socket once
   useEffect(() => {
-    const socket = io(SOCKET_URL, { autoConnect: false });
+    if (!SOCKET_URL) return;
+
+    const socket = io(SOCKET_URL, { 
+      autoConnect: false,
+      reconnectionAttempts: 3,
+      timeout: 5000
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => console.log('Socket connected:', socket.id));
-    socket.on('connect_error', () => showToast('Could not reach server. Running in offline mode.', 'error'));
+    socket.on('connect_error', () => {
+      // Only warn after a delay to avoid false alarm on startup
+      setTimeout(() => {
+        if (!socket.connected) {
+          showToast('Server is waking up... ☕ Please wait a moment.', 'success');
+        }
+      }, 2000);
+    });
     socket.on('error', ({ message }) => showToast(message, 'error'));
 
     socket.connect();
