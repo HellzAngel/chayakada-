@@ -45,12 +45,12 @@ function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = 
 
   return (
     <group ref={ref} position={startPosition} scale={scale}>
-      <RoundedBox args={[3.8, 1.2, 0.2]} radius={0.2} smoothness={1}>
-        <meshStandardMaterial color={color} roughness={0.15} metalness={0.2} />
+      <RoundedBox args={[3.8, 1.2, 0.2]} radius={0.15} smoothness={1}>
+        <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
       </RoundedBox>
       {/* Bubble Tail */}
-      <RoundedBox args={[0.7, 0.7, 0.18]} radius={0.15} position={[-1.4, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} smoothness={1}>
-        <meshStandardMaterial color={color} roughness={0.15} metalness={0.2} />
+      <RoundedBox args={[0.7, 0.7, 0.18]} radius={0.1} position={[-1.4, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} smoothness={1}>
+        <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
       </RoundedBox>
       {/* Message Text */}
       <Text 
@@ -87,7 +87,7 @@ function FloatingChatScene() {
 
   return (
     <>
-      <Stars radius={100} depth={50} count={800} factor={4} saturation={1} fade speed={1} />
+      <Stars radius={100} depth={50} count={250} factor={3} saturation={0} fade speed={0.5} />
       {bubbles.map((b, i) => (
         <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale * responsiveScale} direction={b.dir} />
       ))}
@@ -123,10 +123,10 @@ function Landing({ onJoin, onCreate }) {
   
   return (
     <div className="landing-card glass-panel">
-      <div className="logo-container">
-        <Coffee size={40} color="white" />
+      <div className="logo-container" style={{ animation: 'glow-pulse 2s infinite alternate' }}>
+        <Coffee size={40} color="var(--accent)" />
       </div>
-      <h1 className="landing-title">Chayakada</h1>
+      <h1 className="landing-title neon-text">Chayakada</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1.1rem', lineHeight: '1.6', fontFamily: 'sans-serif' }}>
         കൂട്ടുകാരുമായി സൊറ പറയാൻ നമ്മുടെ സ്വന്തം ഡിജിറ്റൽ ചായക്കട.<br/>കയറി വാ മക്കളേ, തകർക്കാം! ☕
       </p>
@@ -375,10 +375,10 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       {/* Sidebar */}
       <div className="glass-panel sidebar">
         <div className="sidebar-branding" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, var(--primary), var(--accent))', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px var(--primary-glow)' }}>
             <Coffee size={20} color="white" />
           </div>
-          <h2 className="sidebar-title">Chayakada</h2>
+          <h2 className="sidebar-title neon-text" style={{ fontSize: '1.4rem' }}>Chayakada</h2>
         </div>
         
         <div className="sidebar-invite" style={{ marginBottom: '32px' }}>
