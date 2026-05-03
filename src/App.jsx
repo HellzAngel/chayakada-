@@ -256,7 +256,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     { id: 1, text: `ചായക്കട തുറന്നു! ${userContext.roomType === 'private' ? '(Private Room - 2 Max)' : '(Group Room)'}`, sender: 'system', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) },
   ]);
   const [inputMsg, setInputMsg] = useState('');
-  const [participants, setParticipants] = useState([{ userName: userContext.userName, isHost: userContext.isHost, socketId: 'self' }]);
+  const [participants, setParticipants] = useState(userContext.initialMembers || [{ userName: userContext.userName, isHost: userContext.isHost, socketId: 'self' }]);
   const [isVideoActive, setIsVideoActive] = useState(false);
   const [isMicActive, setIsMicActive] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -980,7 +980,7 @@ export default function App() {
       const onJoinSuccess = (state) => {
         sessionStorage.setItem('chayakada_room', normalizedId);
         sessionStorage.setItem('chayakada_user', JSON.stringify(context));
-        setUserContext(context);
+        setUserContext({ ...context, initialMembers: state.members });
         setCurrentRoom(normalizedId);
         socketRef.current.off('error', onError);
       };
