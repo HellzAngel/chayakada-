@@ -228,14 +228,17 @@ html {
 
 /* Landing */
 .landing-card {
-  padding: 32px 24px;
+  padding: 40px;
   max-width: 440px;
-  width: 100%;
+  width: 90%;
   text-align: center;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
 }
 
 .landing-card::after {
@@ -250,7 +253,7 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 24px;
+  margin-bottom: 8px;
   box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
   transform: rotate(-10deg);
   transition: transform 0.3s ease;
@@ -958,10 +961,9 @@ html {
 
 @media (max-width: 768px) {
   .landing-card {
-    padding: 16px;
-    margin: 0;
+    padding: 24px 20px;
     width: 95%;
-    max-height: 98dvh;
+    gap: 12px;
   }
 
   .landing-title {
