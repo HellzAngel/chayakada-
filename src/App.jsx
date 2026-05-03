@@ -315,8 +315,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     if (socket.connected) onConnect(); // Handle case where socket is already connected
 
     socket.on('new-message', (msg) => {
+      console.log('✉️ New message received:', msg);
       setMessages(prev => {
-        // Prevent duplicates from optimistic updates
         if (prev.find(m => m.id === msg.id)) return prev;
         return [...prev, {
           ...msg,
@@ -326,10 +326,12 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     socket.on('join-success', (state) => {
+      console.log('✅ Joined room successfully:', state);
       if (state?.members) setParticipants(state.members);
     });
 
     socket.on('system-message', (msg) => {
+      console.log('📢 System message:', msg);
       setMessages(prev => [...prev, { ...msg, id: Date.now(), sender: 'system' }]);
     });
 
@@ -350,15 +352,11 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       }
     });
 
-    socket.on('user-joined', ({ socketId }) => {
+    socket.on('user-joined', ({ socketId, userName }) => {
+      console.log(`👤 User joined: ${userName} (${socketId})`);
       syncLocalStream();
       if (localStreamRef.current.getTracks().length > 0 && peerRef.current) {
-        // Close existing call if any
-        if (callsRef.current[socketId]) {
-          callsRef.current[socketId].close();
-        }
-        
-        const call = peerRef.current.call(socketId, localStreamRef.current);
+        console.log(`📞 Calling ${userName}...`);
         callsRef.current[socketId] = call;
         
         call.on('stream', (remoteStream) => {
@@ -392,11 +390,28 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       showToast(message, 'error');
     });
 
-    // Initialize PeerJS
-    const peer = new Peer(socket.id);
+    // Initialize PeerJS with STUN servers
+    const peer = new Peer(socket.id, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ]
+      }
+    });
     peerRef.current = peer;
 
+    peer.on('open', (id) => console.log('🆔 PeerJS connected with ID:', id));
+    peer.on('error', (err) => {
+      console.error('❌ PeerJS Error:', err);
+      if (err.type === 'peer-unavailable') {
+        showToast('Participant is temporarily unavailable.', 'error');
+      }
+    });
+
     peer.on('call', (call) => {
+      console.log('📞 Incoming call from:', call.peer);
       syncLocalStream();
       // Close existing call if any
       if (callsRef.current[call.peer]) {
@@ -407,10 +422,12 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       callsRef.current[call.peer] = call;
       
       call.on('stream', (remoteStream) => {
+        console.log('🎬 Remote stream received from:', call.peer);
         setRemoteStreams(prev => ({ ...prev, [call.peer]: remoteStream }));
       });
 
       call.on('close', () => {
+        console.log('📵 Call closed by:', call.peer);
         delete callsRef.current[call.peer];
         setRemoteStreams(prev => {
           const next = { ...prev };
@@ -649,6 +666,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
     };
 
+    console.log(`📤 Sending message to room ${roomId}:`, messageData);
+    
     // Optimistic update
     setMessages(prev => [...prev, { ...messageData, sender: 'own' }]);
 
