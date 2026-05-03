@@ -925,18 +925,46 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 }
 
 function LoadingScreen() {
+  const [statusIdx, setStatusIdx] = useState(0);
+  const statuses = [
+    "അടുപ്പ് കൂട്ടുന്നു...",
+    "വെള്ളം തിളപ്പിക്കുന്നു...",
+    "ഇഞ്ചി ചതയ്ക്കുന്നു...",
+    "ചായപ്പൊടി ഇടുന്നു...",
+    "പാലൊഴിക്കുന്നു...",
+    "ചായ അടിക്കുന്നു...",
+    "ഗ്ലാസ്സിലേക്ക് പകരുന്നു..."
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStatusIdx(prev => (prev + 1) % statuses.length);
+    }, 700);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="loading-screen">
-      <div className="loading-content">
-        <div className="loading-logo-container">
-          <Coffee size={60} color="var(--accent)" className="loading-icon" />
-          <div className="loading-steam"></div>
+      <div className="loading-particles">
+        {[...Array(20)].map((_, i) => <div key={i} className="particle"></div>)}
+      </div>
+      <div className="loading-card glass-panel loading-premium-card">
+        <div className="loading-logo-wrapper">
+          <div className="steam-container">
+            <div className="steam-line"></div>
+            <div className="steam-line"></div>
+            <div className="steam-line"></div>
+          </div>
+          <Coffee size={80} color="var(--accent)" className="loading-icon-large" />
+          <div className="cup-glow"></div>
         </div>
-        <h1 className="loading-text neon-text">Chayakada</h1>
-        <div className="loading-bar-container">
-          <div className="loading-bar-progress"></div>
+        <h1 className="loading-brand neon-text">CHAYAKADA</h1>
+        <div className="loading-progress-container">
+          <div className="loading-progress-bar"></div>
         </div>
-        <p className="loading-subtext">അടുപ്പ് കൂട്ടുന്നു... ചായ ഉടൻ റെഡിയാകും!</p>
+        <div className="status-container">
+          <p className="loading-status-text">{statuses[statusIdx]}</p>
+        </div>
       </div>
     </div>
   );
