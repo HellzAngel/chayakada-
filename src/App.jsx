@@ -234,12 +234,14 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const localStreamRef = useRef(new MediaStream());
   const peerRef = useRef(null);
 
-  // Helper to get combined stream
-  const getCombinedStream = () => {
-    const stream = new MediaStream();
-    if (videoStreamRef.current) videoStreamRef.current.getTracks().forEach(t => stream.addTrack(t));
-    if (audioStreamRef.current) audioStreamRef.current.getTracks().forEach(t => stream.addTrack(t));
-    return stream;
+  // Helper to sync persistent localStreamRef with individual refs
+  const syncLocalStream = () => {
+    const mainStream = localStreamRef.current;
+    // Remove old tracks
+    mainStream.getTracks().forEach(track => mainStream.removeTrack(track));
+    // Add current tracks
+    if (videoStreamRef.current) videoStreamRef.current.getTracks().forEach(t => mainStream.addTrack(t));
+    if (audioStreamRef.current) audioStreamRef.current.getTracks().forEach(t => mainStream.addTrack(t));
   };
 
   // Auto-scroll to latest message
@@ -280,9 +282,9 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     socket.on('user-joined', ({ socketId }) => {
-      const combined = getCombinedStream();
-      if (combined.getTracks().length > 0 && peerRef.current) {
-        const call = peerRef.current.call(socketId, combined);
+      syncLocalStream();
+      if (localStreamRef.current.getTracks().length > 0 && peerRef.current) {
+        const call = peerRef.current.call(socketId, localStreamRef.current);
         call.on('stream', (remoteStream) => {
           setRemoteStreams(prev => ({ ...prev, [socketId]: remoteStream }));
         });
@@ -310,8 +312,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     peerRef.current = peer;
 
     peer.on('call', (call) => {
-      const combined = getCombinedStream();
-      call.answer(combined);
+      syncLocalStream();
+      call.answer(localStreamRef.current);
       call.on('stream', (remoteStream) => {
         setRemoteStreams(prev => ({ ...prev, [call.peer]: remoteStream }));
       });
@@ -341,6 +343,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         .then(stream => {
           videoStreamRef.current = stream;
           if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+          syncLocalStream();
           // Trigger WebRTC refresh to share new stream
           if (socket) socket.emit('refresh-webrtc', { roomId });
         })
@@ -365,7 +368,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
             audioStreamRef.current = stream;
-            // Trigger WebRTC refresh to share new stream
+            syncLocalStream();
             if (socket) socket.emit('refresh-webrtc', { roomId });
           })
           .catch(err => {
@@ -454,7 +457,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     }
   };
 
-  const handleMicMouseDown = () => {
+  const handleMicMouseDown = (e) => {
+    if (e.type === 'touchstart') e.preventDefault();
     isLongPressRef.current = false;
     longPressTimeoutRef.current = setTimeout(() => {
       isLongPressRef.current = true;
@@ -462,12 +466,13 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     }, 500);
   };
 
-  const handleMicMouseUp = () => {
+  const handleMicMouseUp = (e) => {
+    if (e.type === 'touchend') e.preventDefault();
     clearTimeout(longPressTimeoutRef.current);
     if (isLongPressRef.current) {
       stopRecording();
     } else {
-      setIsMicActive(!isMicActive);
+      setIsMicActive(prev => !prev);
     }
   };
 
