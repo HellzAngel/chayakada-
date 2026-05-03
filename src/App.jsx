@@ -12,24 +12,34 @@ function RemoteVideo({ stream, userName }) {
   const [hasVideo, setHasVideo] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (!stream) return;
+    console.log(`📹 RemoteVideo [${userName}] stream updated:`, stream.id, "Tracks:", stream.getTracks().length);
+    
+    if (videoRef.current) {
       videoRef.current.srcObject = stream;
-      
-      const checkVideo = () => {
-        setHasVideo(stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live'));
-      };
-      
-      checkVideo();
-      stream.onaddtrack = checkVideo;
-      stream.onremovetrack = checkVideo;
-      
-      const interval = setInterval(checkVideo, 2000);
-      return () => clearInterval(interval);
     }
-  }, [stream]);
+
+    const updateTrackState = () => {
+      const videoTracks = stream.getVideoTracks();
+      const activeVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
+      console.log(`📹 RemoteVideo [${userName}] VideoTracks:`, videoTracks.length, "Active:", activeVideo);
+      setHasVideo(activeVideo);
+    };
+
+    updateTrackState();
+    stream.onaddtrack = updateTrackState;
+    stream.onremovetrack = updateTrackState;
+    
+    const interval = setInterval(updateTrackState, 1000);
+    return () => {
+      clearInterval(interval);
+      stream.onaddtrack = null;
+      stream.onremovetrack = null;
+    };
+  }, [stream, userName]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#111' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000', borderRadius: 'inherit' }}>
       <video 
         autoPlay 
         playsInline 
@@ -38,8 +48,7 @@ function RemoteVideo({ stream, userName }) {
           width: '100%', 
           height: '100%', 
           objectFit: 'cover', 
-          display: hasVideo ? 'block' : 'none',
-          opacity: hasVideo ? 1 : 0 
+          display: hasVideo ? 'block' : 'none'
         }} 
       />
       {!hasVideo && (
