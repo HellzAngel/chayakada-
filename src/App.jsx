@@ -306,12 +306,23 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   // Socket event listeners
   useEffect(() => {
     if (!socket) return;
+    const onConnect = () => {
+      console.log('Socket connected:', socket.id);
+      socket.emit('join-room', { roomId, userName: userContext.userName });
+    };
+
+    socket.on('connect', onConnect);
+    if (socket.connected) onConnect(); // Handle case where socket is already connected
 
     socket.on('new-message', (msg) => {
-      setMessages(prev => [...prev, {
-        ...msg,
-        sender: msg.sender === socket.id ? 'own' : 'other'
-      }]);
+      setMessages(prev => {
+        // Prevent duplicates from optimistic updates
+        if (prev.find(m => m.id === msg.id)) return prev;
+        return [...prev, {
+          ...msg,
+          sender: msg.sender === socket.id ? 'own' : 'other'
+        }];
+      });
     });
 
     socket.on('join-success', (state) => {
@@ -410,14 +421,22 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     return () => {
+      socket.off('connect', onConnect);
       socket.off('new-message');
+      socket.off('join-success');
       socket.off('system-message');
       socket.off('room-update');
       socket.off('user-joined');
+      socket.off('user-typing');
+      socket.off('user-stop-typing');
       socket.off('error');
-      peer.destroy();
+      socket.off('mute-status-update');
+      if (peerRef.current) {
+        peerRef.current.destroy();
+        peerRef.current = null;
+      }
     };
-  }, [socket]);
+  }, [socket, roomId, userContext.userName]);
 
   // When local stream toggles, tell others to call again
   useEffect(() => {
@@ -621,16 +640,23 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
   const handleSend = () => {
     if (!inputMsg.trim()) return;
-    if (socket) {
+    
+    const messageData = {
+      id: Date.now(),
+      text: inputMsg,
+      sender: socket?.id || 'offline',
+      senderName: userContext.userName,
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    };
+
+    // Optimistic update
+    setMessages(prev => [...prev, { ...messageData, sender: 'own' }]);
+
+    if (socket && socket.connected) {
       socket.emit('send-message', { roomId, text: inputMsg });
       socket.emit('stop-typing', { roomId });
     } else {
-      // Fallback if no socket
-      setMessages(prev => [...prev, {
-        id: Date.now(), text: inputMsg, sender: 'own',
-        senderName: userContext.userName,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-      }]);
+      showToast('You are offline. Message saved locally.', 'success');
     }
     setInputMsg('');
   };
