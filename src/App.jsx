@@ -148,7 +148,7 @@ function Landing({ onJoin, onCreate }) {
         <Coffee size={40} color="var(--accent)" />
       </div>
       <h1 className="landing-title neon-text">Chayakada</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1.1rem', lineHeight: '1.6', fontFamily: 'sans-serif' }}>
+      <p className="landing-description">
         കൂട്ടുകാരുമായി സൊറ പറയാൻ നമ്മുടെ സ്വന്തം ഡിജിറ്റൽ ചായക്കട.<br/>കയറി വാ മക്കളേ, തകർക്കാം! ☕
       </p>
 
