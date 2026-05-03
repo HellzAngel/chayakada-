@@ -953,7 +953,7 @@ export default function App() {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 2500);
+    const timer = setTimeout(() => setIsLoading(false), 5000);
     return () => clearTimeout(timer);
   }, []);
 
