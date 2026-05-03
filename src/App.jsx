@@ -274,6 +274,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const recordingIntervalRef = useRef(null);
   const longPressTimeoutRef = useRef(null);
   const isLongPressRef = useRef(false);
+  const isPendingStopRef = useRef(false);
+  const originalMicStateRef = useRef(true);
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -501,8 +503,18 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   // Audio Recording Logic
   const startRecording = async () => {
     try {
-      const stream = audioStreamRef.current || await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!audioStreamRef.current) audioStreamRef.current = stream;
+      isPendingStopRef.current = false;
+      originalMicStateRef.current = isMicActive;
+      
+      // Physically ensure mic is enabled for recording
+      let stream = audioStreamRef.current;
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioStreamRef.current = stream;
+        syncLocalStream();
+      }
+      
+      stream.getAudioTracks().forEach(t => t.enabled = true);
       
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -513,7 +525,14 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       };
 
       mediaRecorder.onstop = async () => {
+        // Restore previous mic state
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getAudioTracks().forEach(t => t.enabled = originalMicStateRef.current);
+        }
+        
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size < 1000) return; // Ignore tiny/empty recordings
+
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -527,20 +546,32 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
+
+      // If user already released during start-up race
+      if (isPendingStopRef.current) {
+        stopRecording();
+      }
     } catch (err) {
       console.error("Recording failed", err);
       showToast("Could not start recording.", "error");
+      setIsRecording(false);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordingIntervalRef.current);
+      isPendingStopRef.current = false;
+    } else {
+      // If we haven't started yet but stop was requested
+      isPendingStopRef.current = true;
     }
   };
 
