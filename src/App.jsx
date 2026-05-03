@@ -263,6 +263,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const [remoteStreams, setRemoteStreams] = useState({});
   const [showSidebar, setShowSidebar] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+  const [participantMuteStates, setParticipantMuteStates] = useState({}); // { [socketId]: boolean }
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
@@ -318,7 +319,11 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     socket.on('system-message', (msg) => {
-      setMessages(prev => [...prev, { id: Date.now(), sender: 'system', ...msg }]);
+      setMessages(prev => [...prev, { ...msg, id: Date.now(), sender: 'system' }]);
+    });
+
+    socket.on('mute-status-update', ({ socketId, isMuted }) => {
+      setParticipantMuteStates(prev => ({ ...prev, [socketId]: isMuted }));
     });
 
     socket.on('room-update', (state) => {
@@ -461,7 +466,10 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           .then(stream => {
             audioStreamRef.current = stream;
             syncLocalStream();
-            if (socket) socket.emit('refresh-webrtc', { roomId });
+            if (socket) {
+              socket.emit('refresh-webrtc', { roomId });
+              socket.emit('toggle-mute', { roomId, isMuted: false });
+            }
           })
           .catch(err => {
             console.error("Microphone access denied", err);
@@ -470,9 +478,11 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           });
       } else {
         audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = true; });
+        if (socket) socket.emit('toggle-mute', { roomId, isMuted: false });
       }
     } else if (audioStreamRef.current) {
       audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = false; });
+      if (socket) socket.emit('toggle-mute', { roomId, isMuted: true });
     }
   }, [isMicActive]);
 
@@ -723,8 +733,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
             {Object.entries(remoteStreams).map(([peerId, stream]) => {
               const participant = participants.find(p => p.socketId === peerId);
-              // PeerJS doesn't easily tell us if remote is muted, but we can check audio tracks
-              const isRemoteMuted = stream.getAudioTracks().every(t => !t.enabled);
+              const isRemoteMuted = participantMuteStates[peerId] || false;
               
               return (
                 <div className="video-card" key={peerId} onClick={() => setExpandedVideo({ type: 'remote', id: peerId, stream, name: participant?.userName || 'Guest' })}>

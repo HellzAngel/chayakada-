@@ -128,6 +128,10 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-joined', { socketId: socket.id, userName: socket.userName });
   });
 
+  socket.on('toggle-mute', ({ roomId, isMuted }) => {
+    socket.to(roomId).emit('mute-status-update', { socketId: socket.id, isMuted });
+  });
+
   socket.on('typing', ({ roomId }) => {
     socket.to(roomId).emit('user-typing', { userName: socket.userName, socketId: socket.id });
   });
