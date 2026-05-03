@@ -7,13 +7,12 @@ import Peer from 'peerjs';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || null;
 
-function RemoteVideo({ stream, userName }) {
+function RemoteVideo({ stream, userName, isMuted }) {
   const videoRef = useRef();
   const [hasVideo, setHasVideo] = useState(false);
 
   useEffect(() => {
     if (!stream) return;
-    console.log(`📹 RemoteVideo [${userName}] stream updated:`, stream.id, "Tracks:", stream.getTracks().length);
     
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -22,7 +21,6 @@ function RemoteVideo({ stream, userName }) {
     const updateTrackState = () => {
       const videoTracks = stream.getVideoTracks();
       const activeVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
-      console.log(`📹 RemoteVideo [${userName}] VideoTracks:`, videoTracks.length, "Active:", activeVideo);
       setHasVideo(activeVideo);
     };
 
@@ -36,10 +34,10 @@ function RemoteVideo({ stream, userName }) {
       stream.onaddtrack = null;
       stream.onremovetrack = null;
     };
-  }, [stream, userName]);
+  }, [stream]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000', borderRadius: 'inherit' }}>
+    <div className="remote-video-container">
       <video 
         autoPlay 
         playsInline 
@@ -48,23 +46,21 @@ function RemoteVideo({ stream, userName }) {
           width: '100%', 
           height: '100%', 
           objectFit: 'cover', 
-          display: hasVideo ? 'block' : 'none'
+          display: hasVideo ? 'block' : 'none',
+          transform: stream.id === 'local' ? 'scaleX(-1)' : 'none'
         }} 
       />
       {!hasVideo && (
-        <div style={{ 
-          position: 'absolute', 
-          inset: 0, 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          gap: '12px' 
-        }}>
-          <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '2rem' }}>
+        <div className="audio-only-placeholder">
+          <div className="avatar large-avatar pulse-avatar">
             {userName?.charAt(0).toUpperCase() || '?'}
           </div>
-          <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Audio Only</span>
+          <span className="audio-label-text">{userName}</span>
+        </div>
+      )}
+      {isMuted && (
+        <div className="mute-indicator-overlay">
+          <MicOff size={14} color="white" />
         </div>
       )}
     </div>
@@ -710,10 +706,14 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       <div className="glass-panel main-chat">
         {/* Video Grid */}
         {(isVideoActive || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
-          <div className="video-grid">
+          <div className={`video-grid-container ${Object.keys(remoteStreams).length > 1 ? 'multi-view' : ''}`}>
             {(isVideoActive || isMicActive) && (
               <div className="video-card" onClick={() => setExpandedVideo({ type: 'local', stream: videoStreamRef.current || audioStreamRef.current, name: `${userContext.userName} (You)` })}>
-                <RemoteVideo stream={videoStreamRef.current || audioStreamRef.current} userName={userContext.userName} />
+                <RemoteVideo 
+                  stream={videoStreamRef.current || audioStreamRef.current} 
+                  userName={userContext.userName} 
+                  isMuted={!isMicActive}
+                />
                 <div className="video-label">
                   <span style={{ width: '8px', height: '8px', background: isVideoActive ? '#22c55e' : '#f59e0b', borderRadius: '50%', boxShadow: `0 0 10px ${isVideoActive ? '#22c55e' : '#f59e0b'}` }}></span>
                   {userContext.userName} (You)
@@ -723,9 +723,16 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
             {Object.entries(remoteStreams).map(([peerId, stream]) => {
               const participant = participants.find(p => p.socketId === peerId);
+              // PeerJS doesn't easily tell us if remote is muted, but we can check audio tracks
+              const isRemoteMuted = stream.getAudioTracks().every(t => !t.enabled);
+              
               return (
                 <div className="video-card" key={peerId} onClick={() => setExpandedVideo({ type: 'remote', id: peerId, stream, name: participant?.userName || 'Guest' })}>
-                  <RemoteVideo stream={stream} userName={participant?.userName} />
+                  <RemoteVideo 
+                    stream={stream} 
+                    userName={participant?.userName} 
+                    isMuted={isRemoteMuted}
+                  />
                   <div className="video-label">
                     <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
                     {participant?.userName || 'Guest'}
