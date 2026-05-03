@@ -526,6 +526,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
       mediaRecorder.onstop = async () => {
         // Restore previous mic state
+        setIsMicActive(originalMicStateRef.current);
         if (audioStreamRef.current) {
           audioStreamRef.current.getAudioTracks().forEach(t => t.enabled = originalMicStateRef.current);
         }
@@ -544,6 +545,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       };
 
       mediaRecorder.start();
+      setIsMicActive(true); // Temporarily unmute for UI feedback and recording
       setIsRecording(true);
       setRecordingTime(0);
       
