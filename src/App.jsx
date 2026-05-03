@@ -316,6 +316,10 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
     socket.on('new-message', (msg) => {
       console.log('✉️ New message received:', msg);
+      // Diagnostic toast to confirm event delivery
+      if (msg.sender !== socket.id) {
+        showToast(`Message from ${msg.senderName}`, 'success');
+      }
       setMessages(prev => {
         if (prev.find(m => m.id === msg.id)) return prev;
         return [...prev, {
@@ -659,8 +663,9 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const handleSend = () => {
     if (!inputMsg.trim()) return;
     
+    const messageId = `${socket?.id || 'offline'}-${Date.now()}`;
     const messageData = {
-      id: Date.now(),
+      id: messageId,
       text: inputMsg,
       sender: socket?.id || 'offline',
       senderName: userContext.userName,
