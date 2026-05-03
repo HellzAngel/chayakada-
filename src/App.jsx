@@ -428,7 +428,14 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   // Manage Video Stream independently
   useEffect(() => {
     if (isVideoActive) {
-      navigator.mediaDevices.getUserMedia({ video: true })
+      const constraints = { 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      };
+      navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           videoStreamRef.current = stream;
           if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -794,6 +801,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
             <button 
               className={`icon-btn ${!isVideoActive ? 'active-red' : ''}`} 
               onClick={() => setIsVideoActive(!isVideoActive)}
+              onTouchEnd={(e) => { e.preventDefault(); setIsVideoActive(!isVideoActive); }}
               title={isVideoActive ? "Turn off camera" : "Turn on camera"}
             >
               {isVideoActive ? <Video size={20} /> : <VideoOff size={20} />}
