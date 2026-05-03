@@ -225,13 +225,13 @@ html {
 
 /* Landing */
 .landing-card {
-  padding: 48px;
-  max-width: 480px;
+  padding: 32px;
+  max-width: 420px;
   width: 100%;
   text-align: center;
   position: relative;
   overflow: hidden;
-  max-height: 90vh;
+  height: fit-content;
   display: flex;
   flex-direction: column;
 }
