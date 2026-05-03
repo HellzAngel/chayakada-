@@ -229,6 +229,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const videoStreamRef = useRef(null);
   const audioStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
+  const [expandedVideo, setExpandedVideo] = useState(null); // { type: 'local'|'remote'|'screen', id?: string, stream: MediaStream, name: string }
+
   const localStreamRef = useRef(new MediaStream());
   const peerRef = useRef(null);
 
@@ -578,7 +580,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         {(isVideoActive || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
           <div className="video-grid">
             {isVideoActive && (
-              <div className="video-card">
+              <div className="video-card" onClick={() => setExpandedVideo({ type: 'local', stream: videoStreamRef.current, name: `${userContext.userName} (You)` })}>
                 <video 
                   ref={localVideoRef} 
                   autoPlay 
@@ -594,7 +596,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
             )}
 
             {Object.entries(remoteStreams).map(([peerId, stream]) => (
-              <div className="video-card" key={peerId}>
+              <div className="video-card" key={peerId} onClick={() => setExpandedVideo({ type: 'remote', id: peerId, stream, name: participants.find(p => p.socketId === peerId)?.userName || 'Guest' })}>
                 <RemoteVideo stream={stream} />
                 <div className="video-label">
                   <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
@@ -604,7 +606,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
             ))}
             
             {isScreenSharing && (
-              <div className="video-card">
+              <div className="video-card" onClick={() => setExpandedVideo({ type: 'screen', stream: screenStreamRef.current, name: `${userContext.userName} (Screen)` })}>
                 <video 
                   ref={localScreenRef} 
                   autoPlay 
@@ -618,6 +620,20 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Expanded Video Overlay */}
+        {expandedVideo && (
+          <div className="expanded-video-overlay" onClick={() => setExpandedVideo(null)}>
+            <div className="expanded-video-container" onClick={e => e.stopPropagation()}>
+              <button className="close-expanded" onClick={() => setExpandedVideo(null)}>✕</button>
+              <RemoteVideo stream={expandedVideo.stream} />
+              <div className="video-label expanded-label">
+                <span style={{ width: '10px', height: '10px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 12px #22c55e' }}></span>
+                {expandedVideo.name}
+              </div>
+            </div>
           </div>
         )}
 
