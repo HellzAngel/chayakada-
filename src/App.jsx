@@ -924,6 +924,24 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <div className="loading-screen">
+      <div className="loading-content">
+        <div className="loading-logo-container">
+          <Coffee size={60} color="var(--accent)" className="loading-icon" />
+          <div className="loading-steam"></div>
+        </div>
+        <h1 className="loading-text neon-text">Chayakada</h1>
+        <div className="loading-bar-container">
+          <div className="loading-bar-progress"></div>
+        </div>
+        <p className="loading-subtext">അടുപ്പ് കൂട്ടുന്നു... ചായ ഉടൻ റെഡിയാകും!</p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
   const [currentRoom, setCurrentRoom] = useState(() => sessionStorage.getItem('chayakada_room') || null);
@@ -931,7 +949,13 @@ export default function App() {
     const saved = sessionStorage.getItem('chayakada_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [isLoading, setIsLoading] = useState(true);
   const socketRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const showToast = (message, type = 'error') => {
     setToast({ show: true, message, type });
@@ -952,7 +976,6 @@ export default function App() {
 
     socket.on('connect', () => console.log('Socket connected:', socket.id));
     socket.on('connect_error', () => {
-      // Only warn after a delay to avoid false alarm on startup
       setTimeout(() => {
         if (!socket.connected) {
           showToast('Server is waking up... ☕ Please wait a moment.', 'success');
@@ -963,7 +986,6 @@ export default function App() {
 
     socket.connect();
 
-    // Rejoin room if session exists (on page refresh)
     const savedRoom = sessionStorage.getItem('chayakada_room');
     const savedUser = sessionStorage.getItem('chayakada_user');
     if (savedRoom && savedUser) {
@@ -990,7 +1012,6 @@ export default function App() {
         setCurrentRoom(newId);
       });
     } else {
-      // Offline fallback
       sessionStorage.setItem('chayakada_room', newId);
       sessionStorage.setItem('chayakada_user', JSON.stringify(context));
       setUserContext(context);
@@ -1012,7 +1033,6 @@ export default function App() {
     if (socketRef.current?.connected) {
       socketRef.current.emit('join-room', { roomId: normalizedId, userName });
 
-      // Listen for successful join (join-success) or error
       const onJoinSuccess = (state) => {
         sessionStorage.setItem('chayakada_room', normalizedId);
         sessionStorage.setItem('chayakada_user', JSON.stringify(context));
@@ -1027,7 +1047,6 @@ export default function App() {
       socketRef.current.once('join-success', onJoinSuccess);
       socketRef.current.once('error', onError);
     } else {
-      // Offline fallback
       sessionStorage.setItem('chayakada_room', normalizedId);
       sessionStorage.setItem('chayakada_user', JSON.stringify(context));
       setUserContext(context);
@@ -1052,7 +1071,9 @@ export default function App() {
       </div>
       
       <div className="ui-layer">
-        {!currentRoom ? (
+        {isLoading ? (
+          <LoadingScreen />
+        ) : !currentRoom ? (
           <Landing onJoin={handleJoinRoom} onCreate={handleCreateRoom} />
         ) : (
           <ChatRoom 
