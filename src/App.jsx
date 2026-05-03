@@ -340,6 +340,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     socket.on('room-update', (state) => {
+      console.log('🏘️ Room update received:', state);
       if (state?.members) {
         setParticipants(state.members);
         // Cleanup remote streams for users who left
@@ -1019,6 +1020,9 @@ export default function App() {
   };
 
   const handleLeaveRoom = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('leave-room');
+    }
     sessionStorage.removeItem('chayakada_room');
     sessionStorage.removeItem('chayakada_user');
     setCurrentRoom(null);

@@ -149,8 +149,16 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-stop-typing', { socketId: socket.id });
   });
 
-  // ── DISCONNECT ────────────────────────────────────────────────
+  // ── LEAVE / DISCONNECT ──────────────────────────────────────────
+  socket.on('leave-room', () => {
+    handleDisconnect(socket);
+  });
+
   socket.on('disconnect', () => {
+    handleDisconnect(socket);
+  });
+
+  function handleDisconnect(socket) {
     const roomId = socket.roomId;
     if (!roomId || !rooms[roomId]) return;
 
@@ -183,7 +191,7 @@ io.on('connection', (socket) => {
     }
 
     console.log(`Socket ${socket.id} (${leavingUser?.userName}) left room ${roomId}`);
-  });
+  }
 });
 
 // Helper: build room state for clients
