@@ -213,6 +213,14 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const [remoteStreams, setRemoteStreams] = useState({});
   const [showSidebar, setShowSidebar] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingIntervalRef = useRef(null);
+  const longPressTimeoutRef = useRef(null);
+  const isLongPressRef = useRef(false);
+
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   
@@ -398,12 +406,76 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     }
   }, [isScreenSharing]);
 
+  // Audio Recording Logic
+  const startRecording = async () => {
+    try {
+      const stream = audioStreamRef.current || await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!audioStreamRef.current) audioStreamRef.current = stream;
+      
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Audio = reader.result;
+          if (socket) {
+            socket.emit('send-message', { roomId, text: base64Audio });
+          }
+        };
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Recording failed", err);
+      showToast("Could not start recording.", "error");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingIntervalRef.current);
+    }
+  };
+
+  const handleMicMouseDown = () => {
+    isLongPressRef.current = false;
+    longPressTimeoutRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      startRecording();
+    }, 500);
+  };
+
+  const handleMicMouseUp = () => {
+    clearTimeout(longPressTimeoutRef.current);
+    if (isLongPressRef.current) {
+      stopRecording();
+    } else {
+      setIsMicActive(!isMicActive);
+    }
+  };
+
   // Cleanup all streams on leave
   useEffect(() => {
     return () => {
       [videoStreamRef, audioStreamRef, screenStreamRef].forEach(ref => {
         if (ref.current) ref.current.getTracks().forEach(t => t.stop());
       });
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
     };
   }, []);
 
@@ -559,7 +631,11 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
             ) : (
               <div key={msg.id} className={`message-wrapper ${msg.sender}`}>
                 <div className="message-bubble">
-                  {msg.text}
+                  {msg.text.startsWith('data:audio/') ? (
+                    <div className="audio-msg">
+                      <audio src={msg.text} controls style={{ maxWidth: '200px', height: '35px' }} />
+                    </div>
+                  ) : msg.text}
                 </div>
                 <div className="message-time">{msg.time}</div>
               </div>
@@ -585,11 +661,16 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
               {isVideoActive ? <Video size={20} /> : <VideoOff size={20} />}
             </button>
             <button 
-              className={`icon-btn ${!isMicActive ? 'active-red' : ''}`} 
-              onClick={() => setIsMicActive(!isMicActive)}
-              title={isMicActive ? "Mute microphone" : "Unmute microphone"}
+              className={`icon-btn ${!isMicActive ? 'active-red' : ''} ${isRecording ? 'recording-pulse' : ''}`} 
+              onMouseDown={handleMicMouseDown}
+              onMouseUp={handleMicMouseUp}
+              onTouchStart={handleMicMouseDown}
+              onTouchEnd={handleMicMouseUp}
+              title={isRecording ? "Release to send" : (isMicActive ? "Mute / Hold to record" : "Unmute / Hold to record")}
+              style={{ position: 'relative' }}
             >
-              {isMicActive ? <Mic size={20} /> : <MicOff size={20} />}
+              {isRecording ? <Mic size={20} color="#ef4444" /> : (isMicActive ? <Mic size={20} /> : <MicOff size={20} />)}
+              {isRecording && <span className="recording-timer">{recordingTime}s</span>}
             </button>
             <button 
               className={`icon-btn ${isScreenSharing ? 'active-green' : ''}`} 
