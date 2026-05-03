@@ -768,7 +768,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         {/* Video Grid */}
         {(isVideoActive || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
           <div className={`video-grid-container ${Object.keys(remoteStreams).length > 1 ? 'multi-view' : ''}`}>
-            {(isVideoActive || isMicActive) && (
+            {/* Show local card only if video/screen is active, or if we are in a multi-user call */}
+            {(isVideoActive || isScreenSharing || Object.keys(remoteStreams).length > 0) && (isVideoActive || isScreenSharing) && (
               <div className="video-card" onClick={() => setExpandedVideo({ type: 'local', stream: videoStreamRef.current || audioStreamRef.current, name: `${userContext.userName} (You)` })}>
                 <RemoteVideo 
                   stream={videoStreamRef.current || audioStreamRef.current} 
