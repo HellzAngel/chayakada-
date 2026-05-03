@@ -19,6 +19,7 @@ const io = new Server(server, {
 // In-memory room registry
 // rooms[roomId] = { type: 'private'|'group', maxMembers: 2|999, members: { socketId: { userName, isHost } } }
 const rooms = {};
+const roomDeletionTimers = {}; // { [roomId]: timer }
 
 // Health check endpoint (Render needs this)
 app.get('/', (req, res) => {
@@ -85,7 +86,15 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.members[socket.id] = { userName, isHost: false };
+    room.members[socket.id] = { userName, isHost: memberCount === 0 };
+    
+    // Cancel deletion timer if it exists
+    if (roomDeletionTimers[roomId]) {
+      clearTimeout(roomDeletionTimers[roomId]);
+      delete roomDeletionTimers[roomId];
+      console.log(`Room ${roomId} restored from deletion timer.`);
+    }
+
     socket.join(roomId);
     socket.roomId = roomId;
     socket.userName = userName;
@@ -152,9 +161,13 @@ io.on('connection', (socket) => {
     const remaining = Object.keys(room.members).length;
 
     if (remaining === 0) {
-      // No one left — destroy room
-      delete rooms[roomId];
-      console.log(`Room ${roomId} destroyed (empty)`);
+      // Grace period: Wait before destroying room
+      console.log(`Room ${roomId} is empty. Starting deletion timer...`);
+      roomDeletionTimers[roomId] = setTimeout(() => {
+        delete rooms[roomId];
+        delete roomDeletionTimers[roomId];
+        console.log(`Room ${roomId} destroyed after grace period.`);
+      }, 60000); // 1 minute grace period
     } else {
       // If host left, assign new host
       if (leavingUser?.isHost) {
