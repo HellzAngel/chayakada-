@@ -7,14 +7,59 @@ import Peer from 'peerjs';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || null;
 
-function RemoteVideo({ stream }) {
+function RemoteVideo({ stream, userName }) {
   const videoRef = useRef();
+  const [hasVideo, setHasVideo] = useState(false);
+
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+      
+      const checkVideo = () => {
+        setHasVideo(stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live'));
+      };
+      
+      checkVideo();
+      stream.onaddtrack = checkVideo;
+      stream.onremovetrack = checkVideo;
+      
+      const interval = setInterval(checkVideo, 2000);
+      return () => clearInterval(interval);
     }
   }, [stream]);
-  return <video autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} ref={videoRef} />;
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#111' }}>
+      <video 
+        autoPlay 
+        playsInline 
+        ref={videoRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          objectFit: 'cover', 
+          display: hasVideo ? 'block' : 'none',
+          opacity: hasVideo ? 1 : 0 
+        }} 
+      />
+      {!hasVideo && (
+        <div style={{ 
+          position: 'absolute', 
+          inset: 0, 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          gap: '12px' 
+        }}>
+          <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '2rem' }}>
+            {userName?.charAt(0).toUpperCase() || '?'}
+          </div>
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Audio Only</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0], isMobile }) {
@@ -233,6 +278,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
   const localStreamRef = useRef(new MediaStream());
   const peerRef = useRef(null);
+  const callsRef = useRef({}); // { [socketId]: call }
 
   // Helper to sync persistent localStreamRef with individual refs
   const syncLocalStream = () => {
@@ -284,9 +330,25 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     socket.on('user-joined', ({ socketId }) => {
       syncLocalStream();
       if (localStreamRef.current.getTracks().length > 0 && peerRef.current) {
+        // Close existing call if any
+        if (callsRef.current[socketId]) {
+          callsRef.current[socketId].close();
+        }
+        
         const call = peerRef.current.call(socketId, localStreamRef.current);
+        callsRef.current[socketId] = call;
+        
         call.on('stream', (remoteStream) => {
           setRemoteStreams(prev => ({ ...prev, [socketId]: remoteStream }));
+        });
+        
+        call.on('close', () => {
+          delete callsRef.current[socketId];
+          setRemoteStreams(prev => {
+            const next = { ...prev };
+            delete next[socketId];
+            return next;
+          });
         });
       }
     });
@@ -313,9 +375,25 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
 
     peer.on('call', (call) => {
       syncLocalStream();
+      // Close existing call if any
+      if (callsRef.current[call.peer]) {
+        callsRef.current[call.peer].close();
+      }
+      
       call.answer(localStreamRef.current);
+      callsRef.current[call.peer] = call;
+      
       call.on('stream', (remoteStream) => {
         setRemoteStreams(prev => ({ ...prev, [call.peer]: remoteStream }));
+      });
+
+      call.on('close', () => {
+        delete callsRef.current[call.peer];
+        setRemoteStreams(prev => {
+          const next = { ...prev };
+          delete next[call.peer];
+          return next;
+        });
       });
     });
 
@@ -584,31 +662,28 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         {/* Video Grid */}
         {(isVideoActive || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
           <div className="video-grid">
-            {isVideoActive && (
-              <div className="video-card" onClick={() => setExpandedVideo({ type: 'local', stream: videoStreamRef.current, name: `${userContext.userName} (You)` })}>
-                <video 
-                  ref={localVideoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                />
+            {(isVideoActive || isMicActive) && (
+              <div className="video-card" onClick={() => setExpandedVideo({ type: 'local', stream: videoStreamRef.current || audioStreamRef.current, name: `${userContext.userName} (You)` })}>
+                <RemoteVideo stream={videoStreamRef.current || audioStreamRef.current} userName={userContext.userName} />
                 <div className="video-label">
-                  <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
+                  <span style={{ width: '8px', height: '8px', background: isVideoActive ? '#22c55e' : '#f59e0b', borderRadius: '50%', boxShadow: `0 0 10px ${isVideoActive ? '#22c55e' : '#f59e0b'}` }}></span>
                   {userContext.userName} (You)
                 </div>
               </div>
             )}
 
-            {Object.entries(remoteStreams).map(([peerId, stream]) => (
-              <div className="video-card" key={peerId} onClick={() => setExpandedVideo({ type: 'remote', id: peerId, stream, name: participants.find(p => p.socketId === peerId)?.userName || 'Guest' })}>
-                <RemoteVideo stream={stream} />
-                <div className="video-label">
-                  <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
-                  {participants.find(p => p.socketId === peerId)?.userName || 'Guest'}
+            {Object.entries(remoteStreams).map(([peerId, stream]) => {
+              const participant = participants.find(p => p.socketId === peerId);
+              return (
+                <div className="video-card" key={peerId} onClick={() => setExpandedVideo({ type: 'remote', id: peerId, stream, name: participant?.userName || 'Guest' })}>
+                  <RemoteVideo stream={stream} userName={participant?.userName} />
+                  <div className="video-label">
+                    <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 10px #22c55e' }}></span>
+                    {participant?.userName || 'Guest'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {isScreenSharing && (
               <div className="video-card" onClick={() => setExpandedVideo({ type: 'screen', stream: screenStreamRef.current, name: `${userContext.userName} (Screen)` })}>
@@ -633,7 +708,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           <div className="expanded-video-overlay" onClick={() => setExpandedVideo(null)}>
             <div className="expanded-video-container" onClick={e => e.stopPropagation()}>
               <button className="close-expanded" onClick={() => setExpandedVideo(null)}>✕</button>
-              <RemoteVideo stream={expandedVideo.stream} />
+              <RemoteVideo stream={expandedVideo.stream} userName={expandedVideo.name} />
               <div className="video-label expanded-label">
                 <span style={{ width: '10px', height: '10px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 12px #22c55e' }}></span>
                 {expandedVideo.name}
