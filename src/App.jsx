@@ -467,37 +467,47 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     }
   }, [isVideoActive, isMicActive]);
 
-  // Manage Video Stream independently
-  useEffect(() => {
-    if (isVideoActive) {
-      const constraints = { 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      };
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-          videoStreamRef.current = stream;
-          if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-          syncLocalStream();
-          // Trigger WebRTC refresh to share new stream
-          if (socket) socket.emit('refresh-webrtc', { roomId });
-        })
-        .catch(err => {
-          console.error("Camera access denied", err);
-          showToast("Could not access the camera. Please allow permissions.", "error");
-          setIsVideoActive(false);
-        });
+  const toggleVideo = async () => {
+    if (!isVideoActive) {
+      try {
+        const constraints = { 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          } 
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoStreamRef.current = stream;
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        syncLocalStream();
+        setIsVideoActive(true);
+        if (socket) socket.emit('refresh-webrtc', { roomId });
+      } catch (err) {
+        console.error("Camera access denied", err);
+        showToast("Could not access the camera. Please allow permissions.", "error");
+        setIsVideoActive(false);
+      }
     } else {
       if (videoStreamRef.current) {
         videoStreamRef.current.getTracks().forEach(track => track.stop());
         videoStreamRef.current = null;
-        if (socket) socket.emit('refresh-webrtc', { roomId });
       }
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      syncLocalStream();
+      setIsVideoActive(false);
+      if (socket) socket.emit('refresh-webrtc', { roomId });
     }
-  }, [isVideoActive]);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
 
   // Manage Audio Stream independently
   useEffect(() => {
@@ -868,8 +878,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
           <div className="controls-group">
             <button 
               className={`icon-btn ${!isVideoActive ? 'active-red' : ''}`} 
-              onClick={() => setIsVideoActive(!isVideoActive)}
-              onTouchEnd={(e) => { e.preventDefault(); setIsVideoActive(!isVideoActive); }}
+              onClick={toggleVideo}
+              onTouchEnd={(e) => { e.preventDefault(); toggleVideo(); }}
               title={isVideoActive ? "Turn off camera" : "Turn on camera"}
             >
               {isVideoActive ? <Video size={20} /> : <VideoOff size={20} />}
