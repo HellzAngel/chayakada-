@@ -187,11 +187,12 @@ html {
 /* Layout Core */
 .app-container {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .canvas-container {
@@ -955,29 +956,47 @@ html {
 
 @media (max-width: 768px) {
   .landing-card {
-    padding: 24px 20px;
-    margin: 10px;
-    width: calc(100% - 20px);
+    padding: 16px;
+    margin: 0;
+    width: 95%;
+    max-height: 98dvh;
   }
 
   .landing-title {
-    font-size: 2rem;
-    margin-bottom: 8px;
+    font-size: 1.8rem;
+    margin-bottom: 4px;
   }
 
   .landing-description {
-    font-size: 0.9rem;
-    margin-bottom: 20px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    line-height: 1.2;
   }
 
   .logo-container {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 16px;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+  }
+
+  .logo-container svg {
+    width: 20px;
+    height: 20px;
   }
   
   .ui-layer {
-    padding: 10px;
+    padding: 8px;
+  }
+
+  .input-field {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
   }
 
   .video-grid-container {
