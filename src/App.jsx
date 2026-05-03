@@ -202,7 +202,7 @@ function Landing({ onJoin, onCreate }) {
         കൂട്ടുകാരുമായി സൊറ പറയാൻ നമ്മുടെ സ്വന്തം ഡിജിറ്റൽ ചായക്കട.<br/>കയറി വാ മക്കളേ, തകർക്കാം! ☕
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
         <input 
           type="text" 
           className="input-field" 
@@ -221,7 +221,7 @@ function Landing({ onJoin, onCreate }) {
         </select>
       </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <button className="btn" onClick={() => onCreate(userName, roomType)}>
           <Plus size={18} />
           Create New Room
