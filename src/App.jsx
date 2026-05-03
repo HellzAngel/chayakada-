@@ -1,6 +1,6 @@
 import React, { useState, useRef, Suspense, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Stars, OrbitControls, RoundedBox, Text } from '@react-three/drei';
+import { Stars, OrbitControls, RoundedBox, Text, Environment } from '@react-three/drei';
 import { Send, Video, VideoOff, Mic, MicOff, Users, PhoneOff, Copy, MessageSquare, Plus, Coffee, MonitorUp } from 'lucide-react';
 import { io } from 'socket.io-client';
 import Peer from 'peerjs';
@@ -35,22 +35,38 @@ function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = 
     ref.current.position.y += (direction[0] !== 0 ? sway : 0);
 
     // Reset to opposite side if it goes out of bounds
-    if (ref.current.position.x > 15) ref.current.position.x = -15;
-    if (ref.current.position.x < -15) ref.current.position.x = 15;
-    if (ref.current.position.y > 12) ref.current.position.y = -12;
-    if (ref.current.position.y < -12) ref.current.position.y = 12;
+    const limitX = 15;
+    const limitY = 12;
+    if (ref.current.position.x > limitX) ref.current.position.x = -limitX;
+    if (ref.current.position.x < -limitX) ref.current.position.x = limitX;
+    if (ref.current.position.y > limitY) ref.current.position.y = -limitY;
+    if (ref.current.position.y < -limitY) ref.current.position.y = limitY;
     if (ref.current.position.z > 10) ref.current.position.z = -15;
     if (ref.current.position.z < -15) ref.current.position.z = 10;
   });
 
   return (
     <group ref={ref} position={startPosition} scale={scale}>
-      <RoundedBox args={[3.8, 1.2, 0.2]} radius={0.15} smoothness={1}>
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
+      <RoundedBox args={[3.8, 1.2, 0.2]} radius={0.15} smoothness={isMobile ? 2 : 4}>
+        <meshPhysicalMaterial 
+          color={color} 
+          roughness={0.1} 
+          metalness={0.2} 
+          transmission={0.5} 
+          thickness={0.5}
+          clearcoat={1}
+        />
       </RoundedBox>
       {/* Bubble Tail */}
-      <RoundedBox args={[0.7, 0.7, 0.18]} radius={0.1} position={[-1.4, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} smoothness={1}>
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
+      <RoundedBox args={[0.7, 0.7, 0.18]} radius={0.1} position={[-1.4, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} smoothness={isMobile ? 2 : 4}>
+        <meshPhysicalMaterial 
+          color={color} 
+          roughness={0.1} 
+          metalness={0.2} 
+          transmission={0.5} 
+          thickness={0.5}
+          clearcoat={1}
+        />
       </RoundedBox>
       {/* Message Text */}
       <Text 
@@ -70,8 +86,8 @@ function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = 
 
 function FloatingChatScene() {
   const { viewport } = useThree();
-  const isMobile = viewport.width < 10;
-  const responsiveScale = isMobile ? 0.6 : 1;
+  const isMobile = viewport.width < 8;
+  const responsiveScale = isMobile ? 0.45 : 1;
 
   const bubbles = useMemo(() => [
     { pos: [-10, -4, -2], color: '#8b5cf6', text: 'ചോറ് തിന്നോ? 🍚', speed: 1.5, scale: 0.8, dir: [1, 0.3, 0] },
@@ -87,7 +103,7 @@ function FloatingChatScene() {
 
   return (
     <>
-      <Stars radius={100} depth={50} count={250} factor={3} saturation={0} fade speed={0.5} />
+      <Stars radius={100} depth={50} count={isMobile ? 150 : 400} factor={4} saturation={0} fade speed={1} />
       {bubbles.map((b, i) => (
         <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale * responsiveScale} direction={b.dir} />
       ))}
@@ -96,16 +112,21 @@ function FloatingChatScene() {
 }
 
 function ThreeBackground() {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
   return (
     <Canvas 
-      camera={{ position: [0, 0, 8], fov: 45 }} 
-      gl={{ antialias: false, powerPreference: "high-performance" }}
-      dpr={[1, 1.5]}
+      camera={{ position: [0, 0, 10], fov: isMobile ? 65 : 45 }} 
+      gl={{ antialias: true, powerPreference: "high-performance", alpha: false }}
+      dpr={isMobile ? [1, 1.5] : [1, 2]}
     >
       <color attach="background" args={['#1c1512']} />
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.4} />
       <directionalLight position={[5, 10, 5]} intensity={1.5} color="#fcd34d" />
       <directionalLight position={[-5, -5, -5]} intensity={1} color="#ea580c" />
+      <spotLight position={[0, 10, 0]} intensity={1} angle={0.3} penumbra={1} color="#ffffff" />
+      
+      <Environment preset="city" />
       
       <Suspense fallback={null}>
         <FloatingChatScene />

@@ -6,12 +6,12 @@
   --secondary: #78350f; /* Coffee brown */
   --accent: #fcd34d; /* Warm light */
   --bg-base: #1c1512; /* Dark warm brown */
-  --bg-glass: rgba(43, 27, 21, 0.65);
-  --bg-glass-hover: rgba(61, 38, 29, 0.85);
+  --bg-glass: rgba(28, 18, 14, 0.45);
+  --bg-glass-hover: rgba(43, 27, 21, 0.6);
   --text-main: #fef3c7; /* Warm off-white */
-  --text-muted: #d6d3d1;
-  --border-glass: rgba(253, 230, 138, 0.1);
-  --border-glow: rgba(217, 119, 6, 0.3);
+  --text-muted: rgba(214, 211, 209, 0.8);
+  --border-glass: rgba(253, 230, 138, 0.15);
+  --border-glow: rgba(217, 119, 6, 0.5);
 }
 
 * {
@@ -36,16 +36,16 @@ html {
 /* Stunning Glassmorphism */
 .glass-panel {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--border-glass);
-  border-top: 1px solid rgba(253, 230, 138, 0.15);
-  border-left: 1px solid rgba(253, 230, 138, 0.15);
-  border-radius: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
   box-shadow: 
-    0 12px 40px 0 rgba(0, 0, 0, 0.5),
-    inset 0 0 15px rgba(217, 119, 6, 0.05); /* Subtle inner tube glow */
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    0 8px 32px 0 rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .mobile-header, .sidebar-mobile-close {
@@ -55,28 +55,24 @@ html {
 .neon-text {
   color: #fff;
   text-shadow: 
-    0 0 7px #fff,
     0 0 10px #fff,
-    0 0 21px var(--primary),
-    0 0 42px var(--primary),
-    0 0 82px var(--primary);
+    0 0 20px var(--primary);
   animation: neon-flicker 4s infinite alternate;
+  will-change: opacity, text-shadow;
 }
 
 @keyframes neon-flicker {
   0%, 18%, 22%, 25%, 53%, 57%, 100% {
-    text-shadow: 0 0 7px #fff, 0 0 10px #fff, 0 0 21px var(--primary), 0 0 42px var(--primary);
     opacity: 1;
   }
   20%, 24%, 55% {
-    text-shadow: none;
-    opacity: 0.7;
+    opacity: 0.8;
   }
 }
 
 @keyframes glow-pulse {
-  from { filter: drop-shadow(0 0 2px var(--primary)); }
-  to { filter: drop-shadow(0 0 12px var(--primary)); }
+  from { box-shadow: 0 0 5px var(--primary); }
+  to { box-shadow: 0 0 20px var(--primary); }
 }
 
 .glass-panel:hover {
@@ -165,26 +161,27 @@ html {
 
 /* Inputs */
 .input-field {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
   padding: 14px 20px;
-  border-radius: 14px;
+  border-radius: 16px;
   width: 100%;
   outline: none;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
 }
 
 .input-field::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.25);
 }
 
 .input-field:focus {
   border-color: var(--primary);
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.15);
+  transform: translateY(-1px);
 }
 
 /* Layout Core */
@@ -260,19 +257,13 @@ html {
 @keyframes tube-flicker {
   0%, 18%, 22%, 25%, 53%, 57%, 100% {
     text-shadow:
-      0 0 4px #fff,
-      0 0 11px #fff,
-      0 0 19px #fff,
-      0 0 40px #f59e0b,
-      0 0 80px #f59e0b,
-      0 0 90px #f59e0b,
-      0 0 100px #f59e0b,
-      0 0 150px #f59e0b;
+      0 0 8px #fff,
+      0 0 20px #f59e0b;
     color: #fff;
   }
   20%, 24%, 55% {
     text-shadow: none;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.6);
   }
 }
 
@@ -282,6 +273,7 @@ html {
   margin-bottom: 16px;
   animation: tube-flicker 3s infinite alternate;
   letter-spacing: 2px;
+  will-change: color, text-shadow;
 }
 
 .sidebar-title {
@@ -573,10 +565,12 @@ html {
   }
 
   .landing-card {
-    padding: 32px 20px;
-    margin: 16px;
+    padding: 40px 24px;
+    margin: 20px;
+    width: calc(100% - 40px);
     overflow-y: auto;
-    max-height: 95dvh;
+    max-height: 90dvh;
+    border-radius: 32px;
   }
 
   .landing-title {
