@@ -186,13 +186,16 @@ html {
 
 /* Layout Core */
 .app-container {
-  position: relative;
+  position: fixed;
+  inset: 0;
   width: 100%;
+  height: 100%;
   height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  background-color: var(--bg-base);
 }
 
 .canvas-container {
@@ -203,15 +206,17 @@ html {
 }
 
 .ui-layer {
-  position: relative;
+  position: fixed;
+  inset: 0;
   z-index: 10;
   width: 100%;
   height: 100%;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  padding: 24px;
+  padding: 16px;
 }
 
 .ui-layer > * {

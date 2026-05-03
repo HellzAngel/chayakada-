@@ -202,7 +202,7 @@ function Landing({ onJoin, onCreate }) {
         കൂട്ടുകാരുമായി സൊറ പറയാൻ നമ്മുടെ സ്വന്തം ഡിജിറ്റൽ ചായക്കട.<br/>കയറി വാ മക്കളേ, തകർക്കാം! ☕
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
         <input 
           type="text" 
           className="input-field" 
@@ -221,23 +221,23 @@ function Landing({ onJoin, onCreate }) {
         </select>
       </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <button className="btn" onClick={() => onCreate(userName, roomType)}>
-          <Plus size={20} />
+          <Plus size={18} />
           Create New Room
         </button>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
           <div style={{ flex: 1, height: '1px', background: 'var(--border-glass)' }}></div>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>OR JOIN ROOM</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500 }}>OR JOIN</span>
           <div style={{ flex: 1, height: '1px', background: 'var(--border-glass)' }}></div>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
           <input 
             type="text" 
             className="input-field" 
-            placeholder="Enter Room Code..." 
+            placeholder="Room Code..." 
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
           />
@@ -245,7 +245,6 @@ function Landing({ onJoin, onCreate }) {
             Join
           </button>
         </div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>* Private rooms are restricted to 2 people.</p>
       </div>
     </div>
   );
@@ -362,6 +361,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       syncLocalStream();
       if (localStreamRef.current.getTracks().length > 0 && peerRef.current) {
         console.log(`📞 Calling ${userName}...`);
+        const call = peerRef.current.call(socketId, localStreamRef.current);
         callsRef.current[socketId] = call;
         
         call.on('stream', (remoteStream) => {
