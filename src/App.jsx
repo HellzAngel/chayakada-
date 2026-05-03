@@ -17,7 +17,7 @@ function RemoteVideo({ stream }) {
   return <video autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} ref={videoRef} />;
 }
 
-function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0] }) {
+function ChatBubble({ startPosition, color, text, speed, scale = 1, direction = [0, 1, 0], isMobile }) {
   const ref = useRef();
   const [randomOffset] = useState(() => Math.random() * 100);
 
@@ -105,7 +105,7 @@ function FloatingChatScene() {
     <>
       <Stars radius={100} depth={50} count={isMobile ? 150 : 400} factor={4} saturation={0} fade speed={1} />
       {bubbles.map((b, i) => (
-        <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale * responsiveScale} direction={b.dir} />
+        <ChatBubble key={i} startPosition={b.pos} color={b.color} text={b.text} speed={b.speed} scale={b.scale * responsiveScale} direction={b.dir} isMobile={isMobile} />
       ))}
     </>
   );
