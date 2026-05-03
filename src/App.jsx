@@ -221,7 +221,16 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
   const videoStreamRef = useRef(null);
   const audioStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
+  const localStreamRef = useRef(new MediaStream());
   const peerRef = useRef(null);
+
+  // Helper to get combined stream
+  const getCombinedStream = () => {
+    const stream = new MediaStream();
+    if (videoStreamRef.current) videoStreamRef.current.getTracks().forEach(t => stream.addTrack(t));
+    if (audioStreamRef.current) audioStreamRef.current.getTracks().forEach(t => stream.addTrack(t));
+    return stream;
+  };
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -261,9 +270,9 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     });
 
     socket.on('user-joined', ({ socketId }) => {
-      const myStream = videoStreamRef.current || audioStreamRef.current;
-      if (myStream && peerRef.current) {
-        const call = peerRef.current.call(socketId, myStream);
+      const combined = getCombinedStream();
+      if (combined.getTracks().length > 0 && peerRef.current) {
+        const call = peerRef.current.call(socketId, combined);
         call.on('stream', (remoteStream) => {
           setRemoteStreams(prev => ({ ...prev, [socketId]: remoteStream }));
         });
@@ -291,8 +300,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     peerRef.current = peer;
 
     peer.on('call', (call) => {
-      const myStream = videoStreamRef.current || audioStreamRef.current;
-      call.answer(myStream);
+      const combined = getCombinedStream();
+      call.answer(combined);
       call.on('stream', (remoteStream) => {
         setRemoteStreams(prev => ({ ...prev, [call.peer]: remoteStream }));
       });
@@ -322,6 +331,8 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         .then(stream => {
           videoStreamRef.current = stream;
           if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+          // Trigger WebRTC refresh to share new stream
+          if (socket) socket.emit('refresh-webrtc', { roomId });
         })
         .catch(err => {
           console.error("Camera access denied", err);
@@ -332,25 +343,31 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
       if (videoStreamRef.current) {
         videoStreamRef.current.getTracks().forEach(track => track.stop());
         videoStreamRef.current = null;
+        if (socket) socket.emit('refresh-webrtc', { roomId });
       }
     }
   }, [isVideoActive]);
 
   // Manage Audio Stream independently
   useEffect(() => {
-    if (isMicActive && !audioStreamRef.current) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          audioStreamRef.current = stream;
-          stream.getAudioTracks().forEach(track => track.enabled = true);
-        })
-        .catch(err => {
-          console.error("Microphone access denied", err);
-          showToast("Could not access the microphone. Please allow permissions.", "error");
-          setIsMicActive(false);
-        });
+    if (isMicActive) {
+      if (!audioStreamRef.current) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            audioStreamRef.current = stream;
+            // Trigger WebRTC refresh to share new stream
+            if (socket) socket.emit('refresh-webrtc', { roomId });
+          })
+          .catch(err => {
+            console.error("Microphone access denied", err);
+            showToast("Could not access the microphone. Please allow permissions.", "error");
+            setIsMicActive(false);
+          });
+      } else {
+        audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = true; });
+      }
     } else if (audioStreamRef.current) {
-      audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = isMicActive; });
+      audioStreamRef.current.getAudioTracks().forEach(track => { track.enabled = false; });
     }
   }, [isMicActive]);
 
