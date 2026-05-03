@@ -109,12 +109,12 @@ io.on('connection', (socket) => {
   });
 
   // ── SEND MESSAGE ──────────────────────────────────────────────
-    socket.on('send-message', ({ roomId, text }) => {
+    socket.on('send-message', ({ roomId, text, id }) => {
     const room = rooms[roomId];
     if (!room || !room.members[socket.id]) return;
 
     const message = {
-      id: Date.now(),
+      id: id || Date.now(),
       text,
       sender: socket.id,
       senderName: socket.userName,

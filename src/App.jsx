@@ -571,7 +571,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
         reader.onloadend = () => {
           const base64Audio = reader.result;
           if (socket) {
-            socket.emit('send-message', { roomId, text: base64Audio });
+            socket.emit('send-message', { roomId, text: base64Audio, id: Date.now() });
           }
         };
       };
@@ -653,7 +653,7 @@ function ChatRoom({ roomId, onLeave, userContext, showToast, socket }) {
     setMessages(prev => [...prev, { ...messageData, sender: 'own' }]);
 
     if (socket && socket.connected) {
-      socket.emit('send-message', { roomId, text: inputMsg });
+      socket.emit('send-message', { roomId, text: inputMsg, id: messageData.id });
       socket.emit('stop-typing', { roomId });
     } else {
       showToast('You are offline. Message saved locally.', 'success');
